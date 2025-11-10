@@ -153,7 +153,9 @@ function displayLogFiles(data) {
     }
 
     const html = data.logFiles.map(file => `
-        <div class="log-file-card ${file.iisSiteName ? 'iis-site-log' : ''}" onclick="loadLogContent('${escapeHtml(file.fullPath)}', '${escapeHtml(file.fileName)}')">
+        <div class="log-file-card ${file.iisSiteName ? 'iis-site-log' : ''}"
+             data-full-path="${escapeHtml(file.fullPath)}"
+             data-file-name="${escapeHtml(file.fileName)}">
             <div class="log-file-header">
                 <h3>📄 ${file.fileName}</h3>
                 <span class="log-file-size">${file.sizeFormatted}</span>
@@ -178,6 +180,15 @@ function displayLogFiles(data) {
     `).join('');
 
     container.innerHTML = html;
+
+    // Añadir event listeners a las tarjetas
+    container.querySelectorAll('.log-file-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const fullPath = card.getAttribute('data-full-path');
+            const fileName = card.getAttribute('data-file-name');
+            loadLogContent(fullPath, fileName);
+        });
+    });
 }
 
 /**
