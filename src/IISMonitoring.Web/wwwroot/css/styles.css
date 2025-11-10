@@ -238,6 +238,139 @@ footer {
     font-weight: 600;
 }
 
+/* Tabs Styles */
+.tabs-container {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    background: #f1f5f9;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-button {
+    flex: 1;
+    padding: 16px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+    background: rgba(37, 99, 235, 0.05);
+    color: var(--primary-color);
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: white;
+}
+
+.tab-content {
+    display: none;
+    padding: 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Action Buttons */
+.action-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-start {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.btn-start:hover:not(:disabled) {
+    background-color: #10b981;
+    color: white;
+}
+
+.btn-stop {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+.btn-stop:hover:not(:disabled) {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-start:disabled,
+.btn-stop:disabled {
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    border-color: #d1d5db;
+}
+
+.btn-open {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #2563eb;
+}
+
+.btn-open:hover:not(:disabled) {
+    background-color: #2563eb;
+    color: white;
+}
+
+/* Container for action buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Loading spinner for buttons */
+.btn-loading::after {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 6px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;

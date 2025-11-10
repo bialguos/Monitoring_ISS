@@ -108,21 +108,33 @@ function updateApplicationPoolsTable(appPools) {
     const tbody = document.querySelector('#appPoolsTable tbody');
 
     if (!appPools || appPools.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No hay datos disponibles</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
         return;
     }
 
-    tbody.innerHTML = appPools.map(pool => `
-        <tr>
-            <td><strong>${pool.name}</strong></td>
-            <td><span class="status-badge status-${pool.status.toLowerCase()}">${pool.status}</span></td>
-            <td><span class="status-badge ${pool.isEnabled ? 'status-enabled' : 'status-disabled'}">${pool.isEnabled ? 'Sí' : 'No'}</span></td>
-            <td>${pool.cpuUsage.toFixed(2)}%</td>
-            <td>${pool.memoryUsageMB.toLocaleString()} MB</td>
-            <td>${pool.activeRequests}</td>
-            <td>${pool.totalRequests.toLocaleString()}</td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = appPools.map(pool => {
+        const isStarted = pool.status.toLowerCase() === 'started';
+        const actionButton = isStarted
+            ? `<button class="action-btn btn-stop" onclick="controlAppPool('${pool.name}', 'stop')">⏹ Parar</button>`
+            : `<button class="action-btn btn-start" onclick="controlAppPool('${pool.name}', 'start')">▶ Arrancar</button>`;
+
+        return `
+            <tr>
+                <td><strong>${pool.name}</strong></td>
+                <td><span class="status-badge status-${pool.status.toLowerCase()}">${pool.status}</span></td>
+                <td><span class="status-badge ${pool.isEnabled ? 'status-enabled' : 'status-disabled'}">${pool.isEnabled ? 'Sí' : 'No'}</span></td>
+                <td>${pool.cpuUsage.toFixed(2)}%</td>
+                <td>${pool.memoryUsageMB.toLocaleString()} MB</td>
+                <td>${pool.activeRequests}</td>
+                <td>${pool.totalRequests.toLocaleString()}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${actionButton}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // Actualizar tabla de sitios web
@@ -130,21 +142,39 @@ function updateWebSitesTable(websites) {
     const tbody = document.querySelector('#webSitesTable tbody');
 
     if (!websites || websites.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No hay datos disponibles</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
         return;
     }
 
-    tbody.innerHTML = websites.map(site => `
-        <tr>
-            <td><strong>${site.name}</strong></td>
-            <td><span class="status-badge status-${site.status.toLowerCase()}">${site.status}</span></td>
-            <td>${site.id}</td>
-            <td>${site.applicationPool}</td>
-            <td><small>${site.bindings.join('<br>')}</small></td>
-            <td>${site.requestsPerSecond.toLocaleString()}</td>
-            <td>${site.currentConnections}</td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = websites.map(site => {
+        const isStarted = site.status.toLowerCase() === 'started';
+        const actionButton = isStarted
+            ? `<button class="action-btn btn-stop" onclick="controlWebSite('${site.name}', 'stop')">⏹ Parar</button>`
+            : `<button class="action-btn btn-start" onclick="controlWebSite('${site.name}', 'start')">▶ Arrancar</button>`;
+
+        // Botón para abrir el sitio web
+        const openButton = site.bindings && site.bindings.length > 0
+            ? `<button class="action-btn btn-open" onclick="openWebSite('${site.bindings[0].replace(/'/g, "\\'")}')">🌐 Abrir</button>`
+            : '';
+
+        return `
+            <tr>
+                <td><strong>${site.name}</strong></td>
+                <td><span class="status-badge status-${site.status.toLowerCase()}">${site.status}</span></td>
+                <td>${site.id}</td>
+                <td>${site.applicationPool}</td>
+                <td><small>${site.bindings.join('<br>')}</small></td>
+                <td>${site.requestsPerSecond.toLocaleString()}</td>
+                <td>${site.currentConnections}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${actionButton}
+                        ${openButton}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // Inicializar gráficos
@@ -241,4 +271,121 @@ function updateCharts(appPools) {
 // Función para refrescar manualmente (opcional)
 window.refreshDashboard = function() {
     loadInitialData();
+};
+
+// Función para cambiar entre pestañas
+window.switchTab = function(tabName) {
+    // Remover clase active de todos los botones y contenidos
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => button.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
+
+    // Activar la pestaña seleccionada
+    const activeButton = Array.from(tabButtons).find(btn =>
+        btn.textContent.includes(tabName === 'appPools' ? 'Application Pools' : 'Sitios Web')
+    );
+    const activeContent = document.getElementById(tabName + 'Tab');
+
+    if (activeButton) activeButton.classList.add('active');
+    if (activeContent) activeContent.classList.add('active');
+};
+
+// Función para controlar Application Pool (start/stop)
+window.controlAppPool = async function(poolName, action) {
+    const button = event.target;
+    button.disabled = true;
+    button.classList.add('btn-loading');
+
+    try {
+        const response = await fetch(`/api/monitoring/applicationpools/${encodeURIComponent(poolName)}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            console.log(`Application Pool ${poolName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
+            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
+            setTimeout(() => loadInitialData(), 1000);
+        } else {
+            console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Application Pool:`, result.message);
+            alert(`Error: ${result.message || 'No se pudo completar la operación'}`);
+            button.disabled = false;
+            button.classList.remove('btn-loading');
+        }
+    } catch (error) {
+        console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Application Pool:`, error);
+        alert(`Error de conexión: ${error.message}`);
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+    }
+};
+
+// Función para controlar Sitio Web (start/stop)
+window.controlWebSite = async function(siteName, action) {
+    const button = event.target;
+    button.disabled = true;
+    button.classList.add('btn-loading');
+
+    try {
+        const response = await fetch(`/api/monitoring/websites/${encodeURIComponent(siteName)}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            console.log(`Sitio Web ${siteName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
+            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
+            setTimeout(() => loadInitialData(), 1000);
+        } else {
+            console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Sitio Web:`, result.message);
+            alert(`Error: ${result.message || 'No se pudo completar la operación'}`);
+            button.disabled = false;
+            button.classList.remove('btn-loading');
+        }
+    } catch (error) {
+        console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Sitio Web:`, error);
+        alert(`Error de conexión: ${error.message}`);
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+    }
+};
+
+// Función para abrir sitio web en nueva pestaña
+window.openWebSite = function(binding) {
+    try {
+        // Parsear el binding (formato: "http://*:80", "https://example.com:443", etc.)
+        let url = binding;
+
+        // Si el binding tiene un asterisco (*), reemplazarlo con localhost
+        if (url.includes('*')) {
+            url = url.replace('*', 'localhost');
+        }
+
+        // Si el binding no tiene host específico, usar localhost
+        if (url.includes(':/:') || url.includes(':///:')) {
+            url = url.replace(':///', '://localhost/').replace('://', '://localhost:');
+        }
+
+        // Asegurar que la URL tenga el protocolo correcto
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'http://' + url;
+        }
+
+        // Abrir en nueva pestaña
+        window.open(url, '_blank');
+        console.log(`Abriendo sitio web: ${url}`);
+    } catch (error) {
+        console.error('Error al abrir sitio web:', error);
+        alert(`Error al abrir el sitio web: ${error.message}`);
+    }
 };
