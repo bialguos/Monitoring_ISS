@@ -96,15 +96,34 @@
                 </div>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" id="cpuChartContainer">
+                <button class="chart-expand-btn" onclick="expandChart('cpu')" title="Expandir a pantalla completa">
+                    🔍 Expandir
+                </button>
                 <h3>CPU por Application Pool (%) - Evolución Temporal</h3>
                 <canvas id="cpuChart"></canvas>
             </div>
-            <div class="chart-container">
+            <div class="chart-container" id="memoryChartContainer">
+                <button class="chart-expand-btn" onclick="expandChart('memory')" title="Expandir a pantalla completa">
+                    🔍 Expandir
+                </button>
                 <h3>Memoria por Application Pool (MB) - Evolución Temporal</h3>
                 <canvas id="memoryChart"></canvas>
             </div>
         </section>
+
+        <!-- Modal para gráfica en pantalla completa -->
+        <div class="chart-fullscreen-modal" id="chartFullscreenModal">
+            <div class="chart-fullscreen-header">
+                <div class="chart-fullscreen-title" id="chartFullscreenTitle"></div>
+                <button class="chart-fullscreen-close" onclick="closeChartFullscreen()" title="Cerrar">×</button>
+            </div>
+            <div class="chart-fullscreen-content">
+                <div class="chart-fullscreen-canvas-container">
+                    <canvas id="fullscreenChart"></canvas>
+                </div>
+            </div>
+        </div>
 
         <!-- Pestañas para Application Pools y Sitios Web -->
         <section class="table-section">

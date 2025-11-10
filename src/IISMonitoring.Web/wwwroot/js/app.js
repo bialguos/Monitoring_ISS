@@ -751,3 +751,95 @@ function sortWebSitesTable(columnIndex) {
     updateWebSitesTable(sortedData);
     updateSortIndicators('webSitesTable', columnIndex, direction);
 }
+
+// ==================== FULLSCREEN CHART FUNCTIONALITY ====================
+
+let fullscreenChartInstance = null;
+
+// Expandir gráfica a pantalla completa
+window.expandChart = function(chartType) {
+    const modal = document.getElementById('chartFullscreenModal');
+    const titleElement = document.getElementById('chartFullscreenTitle');
+    const canvas = document.getElementById('fullscreenChart');
+
+    // Determinar qué gráfica expandir y su título
+    let sourceChart, title;
+    if (chartType === 'cpu') {
+        sourceChart = cpuChart;
+        title = 'CPU por Application Pool (%) - Evolución Temporal';
+    } else if (chartType === 'memory') {
+        sourceChart = memoryChart;
+        title = 'Memoria por Application Pool (MB) - Evolución Temporal';
+    }
+
+    if (!sourceChart) {
+        console.error('Gráfica no encontrada:', chartType);
+        return;
+    }
+
+    // Configurar el modal
+    titleElement.textContent = title;
+    modal.classList.add('active');
+
+    // Destruir gráfica anterior si existe
+    if (fullscreenChartInstance) {
+        fullscreenChartInstance.destroy();
+    }
+
+    // Crear una copia de la configuración de la gráfica original
+    const config = {
+        type: sourceChart.config.type,
+        data: JSON.parse(JSON.stringify(sourceChart.config.data)),
+        options: JSON.parse(JSON.stringify(sourceChart.config.options))
+    };
+
+    // Ajustar opciones para pantalla completa
+    config.options.maintainAspectRatio = false;
+    config.options.responsive = true;
+
+    // Crear nueva gráfica en el canvas del modal
+    fullscreenChartInstance = new Chart(canvas, config);
+
+    // Prevenir scroll del body
+    document.body.style.overflow = 'hidden';
+
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', handleEscapeKey);
+};
+
+// Cerrar modal de pantalla completa
+window.closeChartFullscreen = function() {
+    const modal = document.getElementById('chartFullscreenModal');
+    modal.classList.remove('active');
+
+    // Destruir la gráfica del modal
+    if (fullscreenChartInstance) {
+        fullscreenChartInstance.destroy();
+        fullscreenChartInstance = null;
+    }
+
+    // Restaurar scroll del body
+    document.body.style.overflow = 'auto';
+
+    // Remover event listener de ESC
+    document.removeEventListener('keydown', handleEscapeKey);
+};
+
+// Manejar tecla ESC para cerrar
+function handleEscapeKey(event) {
+    if (event.key === 'Escape') {
+        closeChartFullscreen();
+    }
+}
+
+// Cerrar modal al hacer clic fuera del contenido
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('chartFullscreenModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeChartFullscreen();
+            }
+        });
+    }
+});
