@@ -1,3 +1,4 @@
+using IISMonitoring.Web.Models;
 using IISMonitoring.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -162,8 +163,37 @@ public class MonitoringController : ControllerBase
     {
         try
         {
+            // Obtener datos históricos
             var historicalData = await _historicalDataService.GetHistoricalDataAsync();
-            return Ok(historicalData);
+
+            // Obtener sitios web para filtrar pools que tienen sitios asociados
+            var webSites = await _monitoringService.GetWebSitesAsync();
+
+            // Extraer los nombres de los application pools que tienen sitios web
+            var poolsWithWebSites = webSites
+                .Where(site => !string.IsNullOrEmpty(site.ApplicationPool) && site.ApplicationPool != "N/A")
+                .Select(site => site.ApplicationPool)
+                .Distinct()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Filtrar datos históricos para incluir solo pools que tienen sitios web
+            var filteredPoolData = historicalData.PoolData
+                .Where(kvp => poolsWithWebSites.Contains(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            var filteredAvailablePools = historicalData.AvailablePools
+                .Where(poolName => poolsWithWebSites.Contains(poolName))
+                .ToList();
+
+            // Crear respuesta filtrada
+            var filteredResponse = new HistoricalDataResponse
+            {
+                PoolData = filteredPoolData,
+                AvailablePools = filteredAvailablePools,
+                RetentionMinutes = historicalData.RetentionMinutes
+            };
+
+            return Ok(filteredResponse);
         }
         catch (Exception ex)
         {
