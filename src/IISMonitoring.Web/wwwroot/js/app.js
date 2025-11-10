@@ -511,6 +511,9 @@ function updateHistoricalCharts() {
     // Actualizar gráfica de Memoria
     memoryChart.data.datasets = memoryDatasets;
     memoryChart.update('none');
+
+    // Actualizar gráfica en pantalla completa si está abierta
+    updateFullscreenChart();
 }
 
 // Función para refrescar manualmente (opcional)
@@ -755,6 +758,7 @@ function sortWebSitesTable(columnIndex) {
 // ==================== FULLSCREEN CHART FUNCTIONALITY ====================
 
 let fullscreenChartInstance = null;
+let currentFullscreenChartType = null; // Tipo de gráfica actualmente expandida
 
 // Expandir gráfica a pantalla completa
 window.expandChart = function(chartType) {
@@ -776,6 +780,9 @@ window.expandChart = function(chartType) {
         console.error('Gráfica no encontrada:', chartType);
         return;
     }
+
+    // Guardar el tipo de gráfica que está expandida
+    currentFullscreenChartType = chartType;
 
     // Configurar el modal
     titleElement.textContent = title;
@@ -807,6 +814,29 @@ window.expandChart = function(chartType) {
     document.addEventListener('keydown', handleEscapeKey);
 };
 
+// Actualizar gráfica en pantalla completa
+function updateFullscreenChart() {
+    if (!fullscreenChartInstance || !currentFullscreenChartType) {
+        return;
+    }
+
+    // Obtener la gráfica fuente correspondiente
+    let sourceChart;
+    if (currentFullscreenChartType === 'cpu') {
+        sourceChart = cpuChart;
+    } else if (currentFullscreenChartType === 'memory') {
+        sourceChart = memoryChart;
+    }
+
+    if (!sourceChart) {
+        return;
+    }
+
+    // Actualizar datos de la gráfica en pantalla completa
+    fullscreenChartInstance.data = JSON.parse(JSON.stringify(sourceChart.data));
+    fullscreenChartInstance.update('none'); // 'none' para actualizar sin animación
+}
+
 // Cerrar modal de pantalla completa
 window.closeChartFullscreen = function() {
     const modal = document.getElementById('chartFullscreenModal');
@@ -817,6 +847,9 @@ window.closeChartFullscreen = function() {
         fullscreenChartInstance.destroy();
         fullscreenChartInstance = null;
     }
+
+    // Limpiar el tipo de gráfica actual
+    currentFullscreenChartType = null;
 
     // Restaurar scroll del body
     document.body.style.overflow = 'auto';
