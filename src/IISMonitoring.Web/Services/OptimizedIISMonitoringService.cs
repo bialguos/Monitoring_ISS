@@ -5,11 +5,31 @@ using Microsoft.Web.Administration;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Management;
+using System.Runtime.InteropServices;
 
 namespace IISMonitoring.Web.Services;
 
 public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 {
+    // Estructuras para P/Invoke de Windows API
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MEMORYSTATUSEX
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
     private readonly ILogger<OptimizedIISMonitoringService> _logger;
     private readonly MonitoringOptions _options;
 
@@ -387,20 +407,62 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
             try
             {
-                // Usar contadores del sistema ya inicializados (sin Thread.Sleep)
+                // Obtener CPU con un pequeño delay para mayor precisión
                 if (_systemCpuCounter != null)
                 {
-                    metrics.TotalCpuUsage = Math.Round(_systemCpuCounter.NextValue(), 2);
+                    try
+                    {
+                        // Primera lectura (ignorar el valor)
+                        _systemCpuCounter.NextValue();
+                        // Pequeño delay para que el contador calcule correctamente
+                        Thread.Sleep(100);
+                        // Segunda lectura (valor real)
+                        metrics.TotalCpuUsage = Math.Round(_systemCpuCounter.NextValue(), 2);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Error obteniendo CPU del sistema");
+                    }
                 }
 
-                if (_availableMemoryCounter != null)
+                // Usar API nativa de Windows para memoria (más precisa que performance counters)
+                var memStatus = new MEMORYSTATUSEX
                 {
-                    metrics.AvailableMemoryMB = (long)_availableMemoryCounter.NextValue();
-                }
+                    dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>()
+                };
 
-                if (_committedBytesCounter != null)
+                if (GlobalMemoryStatusEx(ref memStatus))
                 {
-                    metrics.TotalMemoryUsageMB = (long)(_committedBytesCounter.NextValue() / 1024 / 1024);
+                    // Memoria total física en MB
+                    var totalPhysicalMB = (long)(memStatus.ullTotalPhys / 1024 / 1024);
+
+                    // Memoria disponible física en MB
+                    metrics.AvailableMemoryMB = (long)(memStatus.ullAvailPhys / 1024 / 1024);
+
+                    // Memoria usada = Total - Disponible
+                    metrics.TotalMemoryUsageMB = totalPhysicalMB - metrics.AvailableMemoryMB;
+
+                    _logger.LogTrace(
+                        "Memoria del sistema: Total={TotalMB}MB, Usada={UsedMB}MB, Disponible={AvailableMB}MB, Porcentaje={Percentage}%",
+                        totalPhysicalMB,
+                        metrics.TotalMemoryUsageMB,
+                        metrics.AvailableMemoryMB,
+                        memStatus.dwMemoryLoad);
+                }
+                else
+                {
+                    // Fallback a performance counters si la API falla
+                    _logger.LogWarning("No se pudo usar GlobalMemoryStatusEx, usando performance counters");
+
+                    if (_availableMemoryCounter != null)
+                    {
+                        metrics.AvailableMemoryMB = (long)_availableMemoryCounter.NextValue();
+                    }
+
+                    if (_committedBytesCounter != null)
+                    {
+                        metrics.TotalMemoryUsageMB = (long)(_committedBytesCounter.NextValue() / 1024 / 1024);
+                    }
                 }
 
                 // Contar Application Pools y sitios
