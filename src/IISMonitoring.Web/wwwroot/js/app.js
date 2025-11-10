@@ -278,12 +278,23 @@ function updateApplicationPoolsTable(appPools) {
         return;
     }
 
-    // Store data for sorting (only if not already sorted)
-    if (appPoolsSortState.column === null) {
-        currentAppPoolsData = appPools;
+    // Siempre actualizar los datos
+    currentAppPoolsData = appPools;
+
+    // Si hay una ordenación activa, reaplicarla a los nuevos datos
+    let dataToRender = appPools;
+    if (appPoolsSortState.column !== null) {
+        const { sortedData } = sortData(
+            appPools,
+            appPoolsSortState.column,
+            appPoolsSortState.direction === 'asc' ? null : 'asc',
+            getAppPoolValue
+        );
+        dataToRender = sortedData;
+        currentAppPoolsData = sortedData;
     }
 
-    tbody.innerHTML = appPools.map(pool => {
+    tbody.innerHTML = dataToRender.map(pool => {
         const isStarted = pool.status.toLowerCase() === 'started';
         const actionButton = isStarted
             ? `<button class="action-btn btn-stop" onclick="controlAppPool('${pool.name}', 'stop')">⏹ Parar</button>`
@@ -318,12 +329,23 @@ function updateWebSitesTable(websites) {
         return;
     }
 
-    // Store data for sorting (only if not already sorted)
-    if (webSitesSortState.column === null) {
-        currentWebSitesData = websites;
+    // Siempre actualizar los datos
+    currentWebSitesData = websites;
+
+    // Si hay una ordenación activa, reaplicarla a los nuevos datos
+    let dataToRender = websites;
+    if (webSitesSortState.column !== null) {
+        const { sortedData } = sortData(
+            websites,
+            webSitesSortState.column,
+            webSitesSortState.direction === 'asc' ? null : 'asc',
+            getWebSiteValue
+        );
+        dataToRender = sortedData;
+        currentWebSitesData = sortedData;
     }
 
-    tbody.innerHTML = websites.map(site => {
+    tbody.innerHTML = dataToRender.map(site => {
         const isStarted = site.status.toLowerCase() === 'started';
         const actionButton = isStarted
             ? `<button class="action-btn btn-stop" onclick="controlWebSite('${site.name}', 'stop')">⏹ Parar</button>`
