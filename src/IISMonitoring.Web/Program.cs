@@ -1,7 +1,12 @@
+using IISMonitoring.Web.Configuration;
 using IISMonitoring.Web.Hubs;
 using IISMonitoring.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configurar opciones de monitorización desde appsettings.json
+builder.Services.Configure<MonitoringOptions>(
+    builder.Configuration.GetSection(MonitoringOptions.SectionName));
 
 // Agregar servicios al contenedor
 builder.Services.AddControllers();
@@ -9,8 +14,9 @@ builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Registrar el servicio de monitorización
-builder.Services.AddScoped<IIISMonitoringService, IISMonitoringService>();
+// Registrar el servicio de monitorización optimizado como Singleton
+// Usamos Singleton porque cachea los PerformanceCounters para mejor rendimiento
+builder.Services.AddSingleton<IIISMonitoringService, OptimizedIISMonitoringService>();
 
 // Registrar el servicio en segundo plano
 builder.Services.AddHostedService<MonitoringBackgroundService>();
