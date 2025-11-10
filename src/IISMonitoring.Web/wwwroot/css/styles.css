@@ -685,6 +685,10 @@ footer {
     position: relative;
 }
 
+.chart-container h3 {
+    padding-right: 120px; /* Espacio para el botón de expandir */
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;
