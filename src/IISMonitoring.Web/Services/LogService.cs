@@ -38,7 +38,7 @@ public class LogService : ILogService
             var contentRoot = _environment.ContentRootPath;
             var logsDir = Path.Combine(contentRoot, "logs");
 
-            if (Directory.Exists(logsDir))
+            if (Directory.Exists(logsDir) && !logDirectories.Contains(logsDir))
             {
                 logDirectories.Add(logsDir);
                 await ScanDirectoryForLogs(logsDir, response.LogFiles);
@@ -335,7 +335,7 @@ public class LogService : ILogService
 
                     // Buscar directorio "logs" dentro del sitio
                     var siteLogsDir = Path.Combine(expandedPath, "logs");
-                    if (Directory.Exists(siteLogsDir))
+                    if (Directory.Exists(siteLogsDir) && !logDirectories.Contains(siteLogsDir))
                     {
                         _logger.LogInformation("Directorio de logs encontrado para el sitio {SiteName}: {LogsDir}", site.Name, siteLogsDir);
                         logDirectories.Add(siteLogsDir);
