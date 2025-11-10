@@ -3,11 +3,37 @@ let cpuChart = null;
 let memoryChart = null;
 let connection = null;
 
+// Variables para datos históricos
+let historicalData = null;
+let selectedPools = new Set();
+let availablePools = [];
+let chartUpdateInterval = null;
+
+// Colores para las líneas de los pools (reutilizables)
+const poolColors = [
+    { border: 'rgb(37, 99, 235)', bg: 'rgba(37, 99, 235, 0.1)' },
+    { border: 'rgb(16, 185, 129)', bg: 'rgba(16, 185, 129, 0.1)' },
+    { border: 'rgb(245, 158, 11)', bg: 'rgba(245, 158, 11, 0.1)' },
+    { border: 'rgb(239, 68, 68)', bg: 'rgba(239, 68, 68, 0.1)' },
+    { border: 'rgb(139, 92, 246)', bg: 'rgba(139, 92, 246, 0.1)' },
+    { border: 'rgb(236, 72, 153)', bg: 'rgba(236, 72, 153, 0.1)' },
+    { border: 'rgb(6, 182, 212)', bg: 'rgba(6, 182, 212, 0.1)' },
+    { border: 'rgb(251, 146, 60)', bg: 'rgba(251, 146, 60, 0.1)' },
+    { border: 'rgb(34, 197, 94)', bg: 'rgba(34, 197, 94, 0.1)' },
+    { border: 'rgb(168, 85, 247)', bg: 'rgba(168, 85, 247, 0.1)' }
+];
+
 // Inicializar la aplicación
 document.addEventListener('DOMContentLoaded', () => {
     initializeCharts();
     initializeSignalR();
+    initializePoolSelector();
+    initializeSortableHeaders();
     loadInitialData();
+    loadHistoricalData();
+
+    // Actualizar gráficas cada 5 segundos
+    chartUpdateInterval = setInterval(loadHistoricalData, 5000);
 });
 
 // Inicializar conexión SignalR
@@ -28,6 +54,7 @@ async function initializeSignalR() {
     connection.onreconnected(() => {
         updateConnectionStatus('Conectado', 'status-connected');
         loadInitialData();
+        loadHistoricalData();
     });
 
     connection.onclose(() => {
@@ -41,7 +68,6 @@ async function initializeSignalR() {
     } catch (err) {
         console.error('Error al conectar SignalR:', err);
         updateConnectionStatus('Error de conexión', 'status-disconnected');
-        // Reintentar después de 5 segundos
         setTimeout(() => initializeSignalR(), 5000);
     }
 }
@@ -68,6 +94,146 @@ async function loadInitialData() {
     }
 }
 
+// Cargar datos históricos
+async function loadHistoricalData() {
+    try {
+        const response = await fetch('/api/monitoring/historical');
+        if (response.ok) {
+            historicalData = await response.json();
+
+            // Si es la primera carga, inicializar el selector de pools
+            if (availablePools.length === 0 && historicalData.availablePools.length > 0) {
+                availablePools = historicalData.availablePools;
+                initializePoolSelector();
+            }
+
+            // Actualizar gráficas
+            updateHistoricalCharts();
+        } else {
+            console.error('Error al cargar datos históricos:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Error al cargar datos históricos:', error);
+    }
+}
+
+// Inicializar selector de pools (Searchable Multi-Select)
+function initializePoolSelector() {
+    const tagsContainer = document.getElementById('selectedPoolsTags');
+    const searchInput = document.getElementById('poolSearchInput');
+    const dropdown = document.getElementById('poolDropdown');
+
+    if (availablePools.length === 0) {
+        tagsContainer.innerHTML = '<span class="loading-text">No hay pools disponibles</span>';
+        return;
+    }
+
+    // Seleccionar todos los pools por defecto
+    selectedPools = new Set(availablePools);
+
+    // Renderizar tags iniciales
+    renderSelectedTags();
+
+    // Event listener para el input de búsqueda
+    searchInput.addEventListener('focus', () => {
+        renderDropdownOptions('');
+        dropdown.style.display = 'block';
+    });
+
+    searchInput.addEventListener('input', (e) => {
+        renderDropdownOptions(e.target.value);
+    });
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.multiselect-search-wrapper')) {
+            dropdown.style.display = 'none';
+            searchInput.value = '';
+        }
+    });
+}
+
+// Renderizar los chips/tags de pools seleccionados
+function renderSelectedTags() {
+    const tagsContainer = document.getElementById('selectedPoolsTags');
+
+    if (selectedPools.size === 0) {
+        tagsContainer.innerHTML = '<span class="loading-text">No hay pools seleccionados</span>';
+        return;
+    }
+
+    tagsContainer.innerHTML = Array.from(selectedPools)
+        .sort()
+        .map(pool => `
+            <div class="multiselect-tag">
+                <span>${pool}</span>
+                <button class="multiselect-tag-remove" onclick="removePoolTag('${pool}')" title="Eliminar">×</button>
+            </div>
+        `).join('');
+}
+
+// Renderizar opciones del dropdown con búsqueda
+function renderDropdownOptions(searchTerm) {
+    const optionsContainer = document.getElementById('poolOptions');
+    const filteredPools = availablePools.filter(pool =>
+        pool.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (filteredPools.length === 0) {
+        optionsContainer.innerHTML = '<div class="multiselect-no-results">No se encontraron pools</div>';
+        return;
+    }
+
+    optionsContainer.innerHTML = filteredPools
+        .sort()
+        .map(pool => {
+            const isSelected = selectedPools.has(pool);
+            return `
+                <div class="multiselect-option ${isSelected ? 'selected' : ''}" onclick="togglePool('${pool}')">
+                    <input type="checkbox" class="multiselect-option-checkbox" ${isSelected ? 'checked' : ''} onchange="togglePool('${pool}')">
+                    <span>${pool}</span>
+                </div>
+            `;
+        }).join('');
+}
+
+// Toggle selección de pool
+window.togglePool = function(poolName) {
+    if (selectedPools.has(poolName)) {
+        selectedPools.delete(poolName);
+    } else {
+        selectedPools.add(poolName);
+    }
+
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
+    updateHistoricalCharts();
+};
+
+// Remover un pool específico desde el tag
+window.removePoolTag = function(poolName) {
+    selectedPools.delete(poolName);
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
+    updateHistoricalCharts();
+};
+
+// Seleccionar todos los pools
+window.selectAllPools = function() {
+    selectedPools = new Set(availablePools);
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
+    updateHistoricalCharts();
+};
+
+// Deseleccionar todos los pools
+window.deselectAllPools = function() {
+    selectedPools.clear();
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
+    updateHistoricalCharts();
+};
+
 // Actualizar dashboard completo
 function updateDashboard(data) {
     if (!data) return;
@@ -84,7 +250,6 @@ function updateDashboard(data) {
     // Actualizar application pools
     if (data.applicationPools) {
         updateApplicationPoolsTable(data.applicationPools);
-        updateCharts(data.applicationPools);
     }
 
     // Actualizar sitios web
@@ -109,10 +274,27 @@ function updateApplicationPoolsTable(appPools) {
 
     if (!appPools || appPools.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
+        currentAppPoolsData = [];
         return;
     }
 
-    tbody.innerHTML = appPools.map(pool => {
+    // Siempre actualizar los datos
+    currentAppPoolsData = appPools;
+
+    // Si hay una ordenación activa, reaplicarla a los nuevos datos
+    let dataToRender = appPools;
+    if (appPoolsSortState.column !== null) {
+        const { sortedData } = sortData(
+            appPools,
+            appPoolsSortState.column,
+            appPoolsSortState.direction === 'asc' ? null : 'asc',
+            getAppPoolValue
+        );
+        dataToRender = sortedData;
+        currentAppPoolsData = sortedData;
+    }
+
+    tbody.innerHTML = dataToRender.map(pool => {
         const isStarted = pool.status.toLowerCase() === 'started';
         const actionButton = isStarted
             ? `<button class="action-btn btn-stop" onclick="controlAppPool('${pool.name}', 'stop')">⏹ Parar</button>`
@@ -143,16 +325,32 @@ function updateWebSitesTable(websites) {
 
     if (!websites || websites.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
+        currentWebSitesData = [];
         return;
     }
 
-    tbody.innerHTML = websites.map(site => {
+    // Siempre actualizar los datos
+    currentWebSitesData = websites;
+
+    // Si hay una ordenación activa, reaplicarla a los nuevos datos
+    let dataToRender = websites;
+    if (webSitesSortState.column !== null) {
+        const { sortedData } = sortData(
+            websites,
+            webSitesSortState.column,
+            webSitesSortState.direction === 'asc' ? null : 'asc',
+            getWebSiteValue
+        );
+        dataToRender = sortedData;
+        currentWebSitesData = sortedData;
+    }
+
+    tbody.innerHTML = dataToRender.map(site => {
         const isStarted = site.status.toLowerCase() === 'started';
         const actionButton = isStarted
             ? `<button class="action-btn btn-stop" onclick="controlWebSite('${site.name}', 'stop')">⏹ Parar</button>`
             : `<button class="action-btn btn-start" onclick="controlWebSite('${site.name}', 'start')">▶ Arrancar</button>`;
 
-        // Botón para abrir el sitio web
         const openButton = site.bindings && site.bindings.length > 0
             ? `<button class="action-btn btn-open" onclick="openWebSite('${site.bindings[0].replace(/'/g, "\\'")}')">🌐 Abrir</button>`
             : '';
@@ -177,112 +375,161 @@ function updateWebSitesTable(websites) {
     }).join('');
 }
 
-// Inicializar gráficos
+// Inicializar gráficos (como líneas temporales)
 function initializeCharts() {
     const cpuCtx = document.getElementById('cpuChart').getContext('2d');
     const memoryCtx = document.getElementById('memoryChart').getContext('2d');
 
-    cpuChart = new Chart(cpuCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'CPU %',
-                data: [],
-                backgroundColor: 'rgba(37, 99, 235, 0.8)',
-                borderColor: 'rgba(37, 99, 235, 1)',
-                borderWidth: 1
-            }]
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+            }
+        },
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    unit: 'minute',
+                    displayFormats: {
+                        minute: 'HH:mm'
                     }
+                },
+                title: {
+                    display: true,
+                    text: 'Tiempo'
                 }
             },
-            plugins: {
-                legend: {
-                    display: false
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+
+    cpuChart = new Chart(cpuCtx, {
+        type: 'line',
+        data: {
+            datasets: []
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'CPU (%)'
+                    }
                 }
             }
         }
     });
 
     memoryChart = new Chart(memoryCtx, {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: [],
-            datasets: [{
-                label: 'Memoria (MB)',
-                data: [],
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                borderColor: 'rgba(16, 185, 129, 1)',
-                borderWidth: 1
-            }]
+            datasets: []
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            ...commonOptions,
             scales: {
+                ...commonOptions.scales,
                 y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value + ' MB';
-                        }
+                    ...commonOptions.scales.y,
+                    title: {
+                        display: true,
+                        text: 'Memoria (MB)'
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
                 }
             }
         }
     });
 }
 
-// Actualizar gráficos
-function updateCharts(appPools) {
-    if (!appPools || appPools.length === 0) return;
+// Actualizar gráficas con datos históricos
+function updateHistoricalCharts() {
+    if (!historicalData || !historicalData.poolData) return;
 
-    // Filtrar solo los app pools activos para los gráficos
-    const activeAppPools = appPools.filter(pool => pool.isEnabled);
+    // Preparar datasets para CPU
+    const cpuDatasets = [];
+    const memoryDatasets = [];
 
-    // Actualizar gráfico de CPU
-    cpuChart.data.labels = activeAppPools.map(pool => pool.name);
-    cpuChart.data.datasets[0].data = activeAppPools.map(pool => pool.cpuUsage);
-    cpuChart.update('none'); // 'none' para actualización sin animación
+    let colorIndex = 0;
+    Array.from(selectedPools).sort().forEach(poolName => {
+        const poolData = historicalData.poolData[poolName];
+        if (!poolData || poolData.length === 0) return;
 
-    // Actualizar gráfico de memoria
-    memoryChart.data.labels = activeAppPools.map(pool => pool.name);
-    memoryChart.data.datasets[0].data = activeAppPools.map(pool => pool.memoryUsageMB);
+        const color = poolColors[colorIndex % poolColors.length];
+        colorIndex++;
+
+        // Dataset para CPU
+        cpuDatasets.push({
+            label: poolName,
+            data: poolData.map(point => ({
+                x: new Date(point.timestamp),
+                y: point.cpuUsage
+            })),
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true
+        });
+
+        // Dataset para Memoria
+        memoryDatasets.push({
+            label: poolName,
+            data: poolData.map(point => ({
+                x: new Date(point.timestamp),
+                y: point.memoryUsageMB
+            })),
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true
+        });
+    });
+
+    // Actualizar gráfica de CPU
+    cpuChart.data.datasets = cpuDatasets;
+    cpuChart.update('none');
+
+    // Actualizar gráfica de Memoria
+    memoryChart.data.datasets = memoryDatasets;
     memoryChart.update('none');
+
+    // Actualizar gráfica en pantalla completa si está abierta
+    updateFullscreenChart();
 }
 
 // Función para refrescar manualmente (opcional)
 window.refreshDashboard = function() {
     loadInitialData();
+    loadHistoricalData();
 };
 
 // Función para cambiar entre pestañas
 window.switchTab = function(tabName) {
-    // Remover clase active de todos los botones y contenidos
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
     tabButtons.forEach(button => button.classList.remove('active'));
     tabContents.forEach(content => content.classList.remove('active'));
 
-    // Activar la pestaña seleccionada
     const activeButton = Array.from(tabButtons).find(btn =>
         btn.textContent.includes(tabName === 'appPools' ? 'Application Pools' : 'Sitios Web')
     );
@@ -310,7 +557,6 @@ window.controlAppPool = async function(poolName, action) {
 
         if (response.ok && result.success) {
             console.log(`Application Pool ${poolName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
-            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
             setTimeout(() => loadInitialData(), 1000);
         } else {
             console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Application Pool:`, result.message);
@@ -344,7 +590,6 @@ window.controlWebSite = async function(siteName, action) {
 
         if (response.ok && result.success) {
             console.log(`Sitio Web ${siteName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
-            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
             setTimeout(() => loadInitialData(), 1000);
         } else {
             console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Sitio Web:`, result.message);
@@ -363,25 +608,20 @@ window.controlWebSite = async function(siteName, action) {
 // Función para abrir sitio web en nueva pestaña
 window.openWebSite = function(binding) {
     try {
-        // Parsear el binding (formato: "http://*:80", "https://example.com:443", etc.)
         let url = binding;
 
-        // Si el binding tiene un asterisco (*), reemplazarlo con localhost
         if (url.includes('*')) {
             url = url.replace('*', 'localhost');
         }
 
-        // Si el binding no tiene host específico, usar localhost
         if (url.includes(':/:') || url.includes(':///:')) {
             url = url.replace(':///', '://localhost/').replace('://', '://localhost:');
         }
 
-        // Asegurar que la URL tenga el protocolo correcto
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'http://' + url;
         }
 
-        // Abrir en nueva pestaña
         window.open(url, '_blank');
         console.log(`Abriendo sitio web: ${url}`);
     } catch (error) {
@@ -389,3 +629,250 @@ window.openWebSite = function(binding) {
         alert(`Error al abrir el sitio web: ${error.message}`);
     }
 };
+
+// ==================== SORTING FUNCTIONALITY ====================
+
+// Global state for table sorting
+let currentAppPoolsData = [];
+let currentWebSitesData = [];
+let appPoolsSortState = { column: null, direction: null };
+let webSitesSortState = { column: null, direction: null };
+
+// Initialize sortable table headers
+function initializeSortableHeaders() {
+    // Application Pools table headers
+    const appPoolsHeaders = document.querySelectorAll('#appPoolsTable thead th');
+    appPoolsHeaders.forEach((header, index) => {
+        // Skip the last column (Acciones)
+        if (index < appPoolsHeaders.length - 1) {
+            header.classList.add('sortable');
+            header.addEventListener('click', () => sortAppPoolsTable(index));
+        }
+    });
+
+    // Web Sites table headers
+    const webSitesHeaders = document.querySelectorAll('#webSitesTable thead th');
+    webSitesHeaders.forEach((header, index) => {
+        // Skip the last column (Acciones)
+        if (index < webSitesHeaders.length - 1) {
+            header.classList.add('sortable');
+            header.addEventListener('click', () => sortWebSitesTable(index));
+        }
+    });
+}
+
+// Generic sorting function
+function sortData(data, columnIndex, currentDirection, getValueFn) {
+    const direction = currentDirection === 'asc' ? 'desc' : 'asc';
+
+    const sortedData = [...data].sort((a, b) => {
+        const valueA = getValueFn(a, columnIndex);
+        const valueB = getValueFn(b, columnIndex);
+
+        // Handle numeric values
+        if (!isNaN(valueA) && !isNaN(valueB)) {
+            return direction === 'asc' ? valueA - valueB : valueB - valueA;
+        }
+
+        // Handle string values
+        const strA = String(valueA).toLowerCase();
+        const strB = String(valueB).toLowerCase();
+
+        if (direction === 'asc') {
+            return strA.localeCompare(strB);
+        } else {
+            return strB.localeCompare(strA);
+        }
+    });
+
+    return { sortedData, direction };
+}
+
+// Update sort indicators
+function updateSortIndicators(tableId, columnIndex, direction) {
+    const headers = document.querySelectorAll(`#${tableId} thead th`);
+    headers.forEach((header, index) => {
+        header.classList.remove('sort-asc', 'sort-desc');
+        if (index === columnIndex) {
+            header.classList.add(`sort-${direction}`);
+        }
+    });
+}
+
+// Extract value from Application Pool for sorting
+function getAppPoolValue(pool, columnIndex) {
+    switch (columnIndex) {
+        case 0: return pool.name;
+        case 1: return pool.status;
+        case 2: return pool.isEnabled ? 1 : 0;
+        case 3: return pool.cpuUsage;
+        case 4: return pool.memoryUsageMB;
+        case 5: return pool.activeRequests;
+        case 6: return pool.totalRequests;
+        default: return '';
+    }
+}
+
+// Extract value from Web Site for sorting
+function getWebSiteValue(site, columnIndex) {
+    switch (columnIndex) {
+        case 0: return site.name;
+        case 1: return site.status;
+        case 2: return site.id;
+        case 3: return site.applicationPool;
+        case 4: return site.bindings.join(',');
+        case 5: return site.requestsPerSecond;
+        case 6: return site.currentConnections;
+        default: return '';
+    }
+}
+
+// Sort Application Pools table
+function sortAppPoolsTable(columnIndex) {
+    if (currentAppPoolsData.length === 0) return;
+
+    const currentDirection = appPoolsSortState.column === columnIndex ? appPoolsSortState.direction : null;
+    const { sortedData, direction } = sortData(currentAppPoolsData, columnIndex, currentDirection, getAppPoolValue);
+
+    appPoolsSortState = { column: columnIndex, direction };
+    currentAppPoolsData = sortedData;
+
+    updateApplicationPoolsTable(sortedData);
+    updateSortIndicators('appPoolsTable', columnIndex, direction);
+}
+
+// Sort Web Sites table
+function sortWebSitesTable(columnIndex) {
+    if (currentWebSitesData.length === 0) return;
+
+    const currentDirection = webSitesSortState.column === columnIndex ? webSitesSortState.direction : null;
+    const { sortedData, direction } = sortData(currentWebSitesData, columnIndex, currentDirection, getWebSiteValue);
+
+    webSitesSortState = { column: columnIndex, direction };
+    currentWebSitesData = sortedData;
+
+    updateWebSitesTable(sortedData);
+    updateSortIndicators('webSitesTable', columnIndex, direction);
+}
+
+// ==================== FULLSCREEN CHART FUNCTIONALITY ====================
+
+let fullscreenChartInstance = null;
+let currentFullscreenChartType = null; // Tipo de gráfica actualmente expandida
+
+// Expandir gráfica a pantalla completa
+window.expandChart = function(chartType) {
+    const modal = document.getElementById('chartFullscreenModal');
+    const titleElement = document.getElementById('chartFullscreenTitle');
+    const canvas = document.getElementById('fullscreenChart');
+
+    // Determinar qué gráfica expandir y su título
+    let sourceChart, title;
+    if (chartType === 'cpu') {
+        sourceChart = cpuChart;
+        title = 'CPU por Application Pool (%) - Evolución Temporal';
+    } else if (chartType === 'memory') {
+        sourceChart = memoryChart;
+        title = 'Memoria por Application Pool (MB) - Evolución Temporal';
+    }
+
+    if (!sourceChart) {
+        console.error('Gráfica no encontrada:', chartType);
+        return;
+    }
+
+    // Guardar el tipo de gráfica que está expandida
+    currentFullscreenChartType = chartType;
+
+    // Configurar el modal
+    titleElement.textContent = title;
+    modal.classList.add('active');
+
+    // Destruir gráfica anterior si existe
+    if (fullscreenChartInstance) {
+        fullscreenChartInstance.destroy();
+    }
+
+    // Crear una copia de la configuración de la gráfica original
+    const config = {
+        type: sourceChart.config.type,
+        data: JSON.parse(JSON.stringify(sourceChart.config.data)),
+        options: JSON.parse(JSON.stringify(sourceChart.config.options))
+    };
+
+    // Ajustar opciones para pantalla completa
+    config.options.maintainAspectRatio = false;
+    config.options.responsive = true;
+
+    // Crear nueva gráfica en el canvas del modal
+    fullscreenChartInstance = new Chart(canvas, config);
+
+    // Prevenir scroll del body
+    document.body.style.overflow = 'hidden';
+
+    // Cerrar con tecla ESC
+    document.addEventListener('keydown', handleEscapeKey);
+};
+
+// Actualizar gráfica en pantalla completa
+function updateFullscreenChart() {
+    if (!fullscreenChartInstance || !currentFullscreenChartType) {
+        return;
+    }
+
+    // Obtener la gráfica fuente correspondiente
+    let sourceChart;
+    if (currentFullscreenChartType === 'cpu') {
+        sourceChart = cpuChart;
+    } else if (currentFullscreenChartType === 'memory') {
+        sourceChart = memoryChart;
+    }
+
+    if (!sourceChart) {
+        return;
+    }
+
+    // Actualizar datos de la gráfica en pantalla completa
+    fullscreenChartInstance.data = JSON.parse(JSON.stringify(sourceChart.data));
+    fullscreenChartInstance.update('none'); // 'none' para actualizar sin animación
+}
+
+// Cerrar modal de pantalla completa
+window.closeChartFullscreen = function() {
+    const modal = document.getElementById('chartFullscreenModal');
+    modal.classList.remove('active');
+
+    // Destruir la gráfica del modal
+    if (fullscreenChartInstance) {
+        fullscreenChartInstance.destroy();
+        fullscreenChartInstance = null;
+    }
+
+    // Limpiar el tipo de gráfica actual
+    currentFullscreenChartType = null;
+
+    // Restaurar scroll del body
+    document.body.style.overflow = 'auto';
+
+    // Remover event listener de ESC
+    document.removeEventListener('keydown', handleEscapeKey);
+};
+
+// Manejar tecla ESC para cerrar
+function handleEscapeKey(event) {
+    if (event.key === 'Escape') {
+        closeChartFullscreen();
+    }
+}
+
+// Cerrar modal al hacer clic fuera del contenido
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('chartFullscreenModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeChartFullscreen();
+            }
+        });
+    }
+});

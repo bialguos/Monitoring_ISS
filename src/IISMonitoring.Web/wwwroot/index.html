@@ -6,6 +6,7 @@
     <title>IIS Monitoring Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 </head>
 <body>
@@ -60,15 +61,69 @@
 
         <!-- Gráficos -->
         <section class="charts-section">
-            <div class="chart-container">
-                <h3>CPU por Application Pool</h3>
+            <!-- Selector de Pools con Búsqueda -->
+            <div class="pool-selector-container">
+                <div class="pool-selector-header">
+                    <h3>📈 Gráficas de Evolución (Últimos 10 minutos)</h3>
+                    <div class="pool-selector-controls">
+                        <button class="btn-select-all" onclick="selectAllPools()">Todos</button>
+                        <button class="btn-deselect-all" onclick="deselectAllPools()">Ninguno</button>
+                    </div>
+                </div>
+
+                <!-- Multi-Select Searchable -->
+                <div class="multiselect-wrapper">
+                    <!-- Chips de seleccionados -->
+                    <div class="multiselect-tags" id="selectedPoolsTags">
+                        <span class="loading-text">Cargando pools...</span>
+                    </div>
+
+                    <!-- Input de búsqueda y dropdown -->
+                    <div class="multiselect-search-wrapper">
+                        <input
+                            type="text"
+                            id="poolSearchInput"
+                            class="multiselect-search-input"
+                            placeholder="🔍 Buscar pools..."
+                            autocomplete="off"
+                        />
+                        <div class="multiselect-dropdown" id="poolDropdown" style="display: none;">
+                            <div class="multiselect-options" id="poolOptions">
+                                <!-- Las opciones se cargarán dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container" id="cpuChartContainer">
+                <button class="chart-expand-btn" onclick="expandChart('cpu')" title="Expandir a pantalla completa">
+                    🔍 Expandir
+                </button>
+                <h3>CPU por Application Pool (%) - Evolución Temporal</h3>
                 <canvas id="cpuChart"></canvas>
             </div>
-            <div class="chart-container">
-                <h3>Memoria por Application Pool</h3>
+            <div class="chart-container" id="memoryChartContainer">
+                <button class="chart-expand-btn" onclick="expandChart('memory')" title="Expandir a pantalla completa">
+                    🔍 Expandir
+                </button>
+                <h3>Memoria por Application Pool (MB) - Evolución Temporal</h3>
                 <canvas id="memoryChart"></canvas>
             </div>
         </section>
+
+        <!-- Modal para gráfica en pantalla completa -->
+        <div class="chart-fullscreen-modal" id="chartFullscreenModal">
+            <div class="chart-fullscreen-header">
+                <div class="chart-fullscreen-title" id="chartFullscreenTitle"></div>
+                <button class="chart-fullscreen-close" onclick="closeChartFullscreen()" title="Cerrar">×</button>
+            </div>
+            <div class="chart-fullscreen-content">
+                <div class="chart-fullscreen-canvas-container">
+                    <canvas id="fullscreenChart"></canvas>
+                </div>
+            </div>
+        </div>
 
         <!-- Pestañas para Application Pools y Sitios Web -->
         <section class="table-section">

@@ -1,3 +1,4 @@
+using IISMonitoring.Web.Models;
 using IISMonitoring.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,11 +9,16 @@ namespace IISMonitoring.Web.Controllers;
 public class MonitoringController : ControllerBase
 {
     private readonly IIISMonitoringService _monitoringService;
+    private readonly HistoricalDataService _historicalDataService;
     private readonly ILogger<MonitoringController> _logger;
 
-    public MonitoringController(IIISMonitoringService monitoringService, ILogger<MonitoringController> logger)
+    public MonitoringController(
+        IIISMonitoringService monitoringService,
+        HistoricalDataService historicalDataService,
+        ILogger<MonitoringController> logger)
     {
         _monitoringService = monitoringService;
+        _historicalDataService = historicalDataService;
         _logger = logger;
     }
 
@@ -149,6 +155,50 @@ public class MonitoringController : ControllerBase
         {
             _logger.LogError(ex, $"Error al detener Sitio Web '{siteName}'");
             return StatusCode(500, new { error = "Error al detener Sitio Web", message = ex.Message });
+        }
+    }
+
+    [HttpGet("historical")]
+    public async Task<IActionResult> GetHistoricalData()
+    {
+        try
+        {
+            // Obtener datos históricos
+            var historicalData = await _historicalDataService.GetHistoricalDataAsync();
+
+            // Obtener sitios web para filtrar pools que tienen sitios asociados
+            var webSites = await _monitoringService.GetWebSitesAsync();
+
+            // Extraer los nombres de los application pools que tienen sitios web
+            var poolsWithWebSites = webSites
+                .Where(site => !string.IsNullOrEmpty(site.ApplicationPool) && site.ApplicationPool != "N/A")
+                .Select(site => site.ApplicationPool)
+                .Distinct()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Filtrar datos históricos para incluir solo pools que tienen sitios web
+            var filteredPoolData = historicalData.PoolData
+                .Where(kvp => poolsWithWebSites.Contains(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            var filteredAvailablePools = historicalData.AvailablePools
+                .Where(poolName => poolsWithWebSites.Contains(poolName))
+                .ToList();
+
+            // Crear respuesta filtrada
+            var filteredResponse = new HistoricalDataResponse
+            {
+                PoolData = filteredPoolData,
+                AvailablePools = filteredAvailablePools,
+                RetentionMinutes = historicalData.RetentionMinutes
+            };
+
+            return Ok(filteredResponse);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener datos históricos");
+            return StatusCode(500, new { error = "Error al obtener datos históricos", message = ex.Message });
         }
     }
 }

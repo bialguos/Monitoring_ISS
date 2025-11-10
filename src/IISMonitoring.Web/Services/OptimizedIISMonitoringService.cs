@@ -4,11 +4,32 @@ using Microsoft.Extensions.Options;
 using Microsoft.Web.Administration;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Management;
+using System.Runtime.InteropServices;
 
 namespace IISMonitoring.Web.Services;
 
 public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 {
+    // Estructuras para P/Invoke de Windows API
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MEMORYSTATUSEX
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
     private readonly ILogger<OptimizedIISMonitoringService> _logger;
     private readonly MonitoringOptions _options;
 
@@ -114,39 +135,119 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
     {
         try
         {
-            // Buscar el proceso w3wp correspondiente
-            var processes = Process.GetProcessesByName("w3wp");
-            Process? targetProcess = null;
+            // Método 1: Intentar usar los contadores específicos de W3SVC_W3WP (organizados por Application Pool)
+            var cpuKey = $"W3WP_{appPoolName}_CPU";
+            var memKey = $"W3WP_{appPoolName}_Memory";
 
-            foreach (var process in processes)
+            var cpuCounter = GetOrCreateCounter("W3SVC_W3WP", "% Processor Time", appPoolName, cpuKey);
+            var memCounter = GetOrCreateCounter("W3SVC_W3WP", "Active Threads", appPoolName, memKey);
+
+            if (cpuCounter != null)
+            {
+                var cpuValue = cpuCounter.NextValue();
+                appPoolInfo.CpuUsage = Math.Round(cpuValue, 2);
+            }
+
+            // Para memoria, buscar el proceso w3wp específico de este Application Pool
+            GetAppPoolMemoryFromProcess(appPoolName, appPoolInfo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error obteniendo contadores W3SVC_W3WP para {AppPoolName}, intentando método alternativo", appPoolName);
+
+            // Método alternativo: buscar por PID usando WMI o Process
+            try
+            {
+                GetAppPoolMemoryFromProcess(appPoolName, appPoolInfo);
+            }
+            catch (Exception ex2)
+            {
+                _logger.LogDebug(ex2, "No se pudieron obtener contadores de rendimiento para {AppPoolName}", appPoolName);
+                appPoolInfo.CpuUsage = 0;
+                appPoolInfo.MemoryUsageMB = 0;
+            }
+        }
+    }
+
+    private void GetAppPoolMemoryFromProcess(string appPoolName, ApplicationPoolInfo appPoolInfo)
+    {
+        try
+        {
+            // Obtener el PID del proceso w3wp que corresponde a este Application Pool usando WMI
+            var targetPid = GetAppPoolProcessId(appPoolName);
+
+            if (targetPid == 0)
+            {
+                _logger.LogTrace("No se encontró proceso w3wp para el Application Pool {AppPoolName}", appPoolName);
+                return;
+            }
+
+            // Obtener el proceso específico
+            try
+            {
+                var process = Process.GetProcessById(targetPid);
+
+                // Obtener el nombre de instancia del contador para este proceso específico
+                var instanceName = GetProcessInstanceName(process);
+
+                if (string.IsNullOrEmpty(instanceName))
+                {
+                    _logger.LogTrace("No se pudo obtener el nombre de instancia para el proceso {ProcessId}", targetPid);
+                    process.Dispose();
+                    return;
+                }
+
+                // Crear claves únicas para el caché
+                var cpuKey = $"Process_{appPoolName}_{targetPid}_CPU";
+                var memKey = $"Process_{appPoolName}_{targetPid}_Memory";
+
+                // Obtener contadores usando el nombre de instancia correcto
+                var cpuCounter = GetOrCreateCounter("Process", "% Processor Time", instanceName, cpuKey);
+                var memCounter = GetOrCreateCounter("Process", "Working Set - Private", instanceName, memKey);
+
+                if (cpuCounter != null)
+                {
+                    var cpuValue = cpuCounter.NextValue();
+                    appPoolInfo.CpuUsage = Math.Round(cpuValue, 2);
+                }
+
+                if (memCounter != null)
+                {
+                    var memValue = memCounter.NextValue();
+                    appPoolInfo.MemoryUsageMB = (long)(memValue / 1024 / 1024);
+                }
+
+                process.Dispose();
+            }
+            catch (ArgumentException)
+            {
+                _logger.LogTrace("El proceso {ProcessId} ya no existe", targetPid);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error obteniendo memoria desde procesos para {AppPoolName}", appPoolName);
+        }
+    }
+
+    private int GetAppPoolProcessId(string appPoolName)
+    {
+        try
+        {
+            // Usar WMI para obtener el PID del proceso w3wp que corresponde a este Application Pool
+            using var searcher = new System.Management.ManagementObjectSearcher(
+                "SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name = 'w3wp.exe'");
+
+            foreach (System.Management.ManagementObject obj in searcher.Get())
             {
                 try
                 {
-                    // Intentar obtener el nombre del app pool desde las variables de entorno del proceso
-                    // Nota: esto requiere permisos administrativos
-                    var cpuKey = $"AppPool_{appPoolName}_CPU";
-                    var memKey = $"AppPool_{appPoolName}_Memory";
+                    var commandLine = obj["CommandLine"]?.ToString() ?? string.Empty;
 
-                    // Intentar obtener contador de CPU (usa caché)
-                    var cpuCounter = GetOrCreateCounter("Process", "% Processor Time", process.ProcessName, cpuKey);
-                    if (cpuCounter != null)
+                    // La línea de comandos contiene el nombre del Application Pool como parámetro -ap "nombre"
+                    if (commandLine.Contains($"-ap \"{appPoolName}\"", StringComparison.OrdinalIgnoreCase))
                     {
-                        var cpuValue = cpuCounter.NextValue();
-                        appPoolInfo.CpuUsage = Math.Round(cpuValue, 2);
-                    }
-
-                    // Intentar obtener contador de memoria (usa caché)
-                    var memCounter = GetOrCreateCounter("Process", "Working Set - Private", process.ProcessName, memKey);
-                    if (memCounter != null)
-                    {
-                        appPoolInfo.MemoryUsageMB = (long)(memCounter.NextValue() / 1024 / 1024);
-                    }
-
-                    // Si encontramos valores válidos, usamos este proceso
-                    if (appPoolInfo.CpuUsage > 0 || appPoolInfo.MemoryUsageMB > 0)
-                    {
-                        targetProcess = process;
-                        break;
+                        return Convert.ToInt32(obj["ProcessId"]);
                     }
                 }
                 catch
@@ -154,46 +255,69 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
                     continue;
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogTrace(ex, "Error usando WMI para obtener PID del Application Pool {AppPoolName}", appPoolName);
+        }
 
-            // Si no se encontró el proceso, usar valores por defecto
-            if (targetProcess == null)
-            {
-                appPoolInfo.CpuUsage = 0;
-                appPoolInfo.MemoryUsageMB = 0;
-            }
+        return 0;
+    }
 
-            // Limpiar procesos
-            foreach (var p in processes)
+    private string GetProcessInstanceName(Process process)
+    {
+        try
+        {
+            // Obtener el nombre de instancia correcto del contador de rendimiento
+            var category = new PerformanceCounterCategory("Process");
+            var instances = category.GetInstanceNames();
+
+            // Buscar la instancia que corresponde a este PID
+            foreach (var instance in instances)
             {
-                p.Dispose();
+                if (instance.StartsWith("w3wp", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using var pidCounter = new PerformanceCounter("Process", "ID Process", instance, true);
+                        if ((int)pidCounter.NextValue() == process.Id)
+                        {
+                            return instance;
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "No se pudieron obtener contadores de rendimiento para {AppPoolName}", appPoolName);
-            appPoolInfo.CpuUsage = 0;
-            appPoolInfo.MemoryUsageMB = 0;
+            _logger.LogTrace(ex, "Error obteniendo nombre de instancia para proceso {ProcessId}", process.Id);
         }
+
+        return string.Empty;
     }
 
     private void GetAppPoolRequestCounters(string appPoolName, ApplicationPoolInfo appPoolInfo)
     {
         try
         {
-            var requestKey = $"AppPool_{appPoolName}_Requests";
-            var recycleKey = $"AppPool_{appPoolName}_Recycles";
+            var activeRequestKey = $"AppPool_{appPoolName}_ActiveRequests";
+            var totalRequestKey = $"AppPool_{appPoolName}_TotalRequests";
 
-            var requestCounter = GetOrCreateCounter("APP_POOL_WAS", "Current Application Pool State", appPoolName, requestKey);
-            var recycleCounter = GetOrCreateCounter("APP_POOL_WAS", "Total Application Pool Recycles", appPoolName, recycleKey);
+            var activeRequestCounter = GetOrCreateCounter("W3SVC_W3WP", "Active Requests", appPoolName, activeRequestKey);
+            var totalRequestCounter = GetOrCreateCounter("W3SVC_W3WP", "Total HTTP Requests Served", appPoolName, totalRequestKey);
 
-            if (requestCounter != null)
+            if (activeRequestCounter != null)
             {
-                appPoolInfo.ActiveRequests = (int)requestCounter.NextValue();
+                appPoolInfo.ActiveRequests = (int)activeRequestCounter.NextValue();
             }
 
-            if (recycleCounter != null)
+            if (totalRequestCounter != null)
             {
-                appPoolInfo.TotalRequests = (int)recycleCounter.NextValue();
+                appPoolInfo.TotalRequests = (int)totalRequestCounter.NextValue();
             }
         }
         catch (Exception ex)
@@ -283,20 +407,62 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
             try
             {
-                // Usar contadores del sistema ya inicializados (sin Thread.Sleep)
+                // Obtener CPU con un pequeño delay para mayor precisión
                 if (_systemCpuCounter != null)
                 {
-                    metrics.TotalCpuUsage = Math.Round(_systemCpuCounter.NextValue(), 2);
+                    try
+                    {
+                        // Primera lectura (ignorar el valor)
+                        _systemCpuCounter.NextValue();
+                        // Pequeño delay para que el contador calcule correctamente
+                        Thread.Sleep(100);
+                        // Segunda lectura (valor real)
+                        metrics.TotalCpuUsage = Math.Round(_systemCpuCounter.NextValue(), 2);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Error obteniendo CPU del sistema");
+                    }
                 }
 
-                if (_availableMemoryCounter != null)
+                // Usar API nativa de Windows para memoria (más precisa que performance counters)
+                var memStatus = new MEMORYSTATUSEX
                 {
-                    metrics.AvailableMemoryMB = (long)_availableMemoryCounter.NextValue();
-                }
+                    dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>()
+                };
 
-                if (_committedBytesCounter != null)
+                if (GlobalMemoryStatusEx(ref memStatus))
                 {
-                    metrics.TotalMemoryUsageMB = (long)(_committedBytesCounter.NextValue() / 1024 / 1024);
+                    // Memoria total física en MB
+                    var totalPhysicalMB = (long)(memStatus.ullTotalPhys / 1024 / 1024);
+
+                    // Memoria disponible física en MB
+                    metrics.AvailableMemoryMB = (long)(memStatus.ullAvailPhys / 1024 / 1024);
+
+                    // Memoria usada = Total - Disponible
+                    metrics.TotalMemoryUsageMB = totalPhysicalMB - metrics.AvailableMemoryMB;
+
+                    _logger.LogTrace(
+                        "Memoria del sistema: Total={TotalMB}MB, Usada={UsedMB}MB, Disponible={AvailableMB}MB, Porcentaje={Percentage}%",
+                        totalPhysicalMB,
+                        metrics.TotalMemoryUsageMB,
+                        metrics.AvailableMemoryMB,
+                        memStatus.dwMemoryLoad);
+                }
+                else
+                {
+                    // Fallback a performance counters si la API falla
+                    _logger.LogWarning("No se pudo usar GlobalMemoryStatusEx, usando performance counters");
+
+                    if (_availableMemoryCounter != null)
+                    {
+                        metrics.AvailableMemoryMB = (long)_availableMemoryCounter.NextValue();
+                    }
+
+                    if (_committedBytesCounter != null)
+                    {
+                        metrics.TotalMemoryUsageMB = (long)(_committedBytesCounter.NextValue() / 1024 / 1024);
+                    }
                 }
 
                 // Contar Application Pools y sitios
