@@ -6,6 +6,7 @@
     <title>IIS Monitoring Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 </head>
 <body>
@@ -60,12 +61,26 @@
 
         <!-- Gráficos -->
         <section class="charts-section">
+            <!-- Selector de Pools -->
+            <div class="pool-selector-container">
+                <div class="pool-selector-header">
+                    <h3>📈 Gráficas de Evolución (Últimos 10 minutos)</h3>
+                    <div class="pool-selector-controls">
+                        <button class="btn-select-all" onclick="selectAllPools()">Seleccionar Todos</button>
+                        <button class="btn-deselect-all" onclick="deselectAllPools()">Deseleccionar Todos</button>
+                    </div>
+                </div>
+                <div id="poolSelector" class="pool-selector">
+                    <span class="loading-text">Cargando pools...</span>
+                </div>
+            </div>
+
             <div class="chart-container">
-                <h3>CPU por Application Pool</h3>
+                <h3>CPU por Application Pool (%) - Evolución Temporal</h3>
                 <canvas id="cpuChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>Memoria por Application Pool</h3>
+                <h3>Memoria por Application Pool (MB) - Evolución Temporal</h3>
                 <canvas id="memoryChart"></canvas>
             </div>
         </section>

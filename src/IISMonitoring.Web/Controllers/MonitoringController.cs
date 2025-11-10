@@ -8,11 +8,16 @@ namespace IISMonitoring.Web.Controllers;
 public class MonitoringController : ControllerBase
 {
     private readonly IIISMonitoringService _monitoringService;
+    private readonly HistoricalDataService _historicalDataService;
     private readonly ILogger<MonitoringController> _logger;
 
-    public MonitoringController(IIISMonitoringService monitoringService, ILogger<MonitoringController> logger)
+    public MonitoringController(
+        IIISMonitoringService monitoringService,
+        HistoricalDataService historicalDataService,
+        ILogger<MonitoringController> logger)
     {
         _monitoringService = monitoringService;
+        _historicalDataService = historicalDataService;
         _logger = logger;
     }
 
@@ -149,6 +154,21 @@ public class MonitoringController : ControllerBase
         {
             _logger.LogError(ex, $"Error al detener Sitio Web '{siteName}'");
             return StatusCode(500, new { error = "Error al detener Sitio Web", message = ex.Message });
+        }
+    }
+
+    [HttpGet("historical")]
+    public async Task<IActionResult> GetHistoricalData()
+    {
+        try
+        {
+            var historicalData = await _historicalDataService.GetHistoricalDataAsync();
+            return Ok(historicalData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener datos históricos");
+            return StatusCode(500, new { error = "Error al obtener datos históricos", message = ex.Message });
         }
     }
 }

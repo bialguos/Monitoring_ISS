@@ -371,6 +371,111 @@ footer {
     }
 }
 
+/* Pool Selector Styles */
+.pool-selector-container {
+    grid-column: 1 / -1;
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    margin-bottom: 10px;
+}
+
+.pool-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.pool-selector-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-select-all,
+.btn-deselect-all {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-select-all {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #2563eb;
+}
+
+.btn-select-all:hover {
+    background-color: #2563eb;
+    color: white;
+}
+
+.btn-deselect-all {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+}
+
+.btn-deselect-all:hover {
+    background-color: #9ca3af;
+    color: white;
+}
+
+.pool-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-height: 40px;
+}
+
+.pool-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.pool-checkbox-wrapper:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.pool-checkbox-wrapper.selected {
+    border-color: #2563eb;
+    background: #dbeafe;
+}
+
+.pool-checkbox-wrapper input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    accent-color: #2563eb;
+}
+
+.pool-checkbox-wrapper label {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    user-select: none;
+}
+
+.loading-text {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;
@@ -384,6 +489,21 @@ footer {
 
     .charts-section {
         grid-template-columns: 1fr;
+    }
+
+    .pool-selector-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pool-selector-controls {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .btn-select-all,
+    .btn-deselect-all {
+        width: 100%;
     }
 
     table {

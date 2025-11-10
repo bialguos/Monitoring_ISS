@@ -23,4 +23,19 @@ public class MonitoringOptions
     /// Número máximo de reintentos al crear contadores
     /// </summary>
     public int MaxCounterRetries { get; set; } = 3;
+
+    /// <summary>
+    /// Habilitar almacenamiento de datos históricos
+    /// </summary>
+    public bool EnableHistoricalData { get; set; } = true;
+
+    /// <summary>
+    /// Tiempo de retención de datos históricos en minutos (por defecto 10 minutos)
+    /// </summary>
+    public int HistoricalDataRetentionMinutes { get; set; } = 10;
+
+    /// <summary>
+    /// Ruta del archivo de datos históricos
+    /// </summary>
+    public string HistoricalDataPath { get; set; } = "Data/historical-data.json";
 }

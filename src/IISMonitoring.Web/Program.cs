@@ -18,6 +18,10 @@ builder.Services.AddSwaggerGen();
 // Usamos Singleton porque cachea los PerformanceCounters para mejor rendimiento
 builder.Services.AddSingleton<IIISMonitoringService, OptimizedIISMonitoringService>();
 
+// Registrar el servicio de datos históricos como Singleton
+// Usamos Singleton para gestionar el acceso al archivo de forma centralizada
+builder.Services.AddSingleton<HistoricalDataService>();
+
 // Registrar el servicio en segundo plano
 builder.Services.AddHostedService<MonitoringBackgroundService>();
 

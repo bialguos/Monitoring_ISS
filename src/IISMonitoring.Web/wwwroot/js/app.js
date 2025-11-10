@@ -3,11 +3,35 @@ let cpuChart = null;
 let memoryChart = null;
 let connection = null;
 
+// Variables para datos históricos
+let historicalData = null;
+let selectedPools = new Set();
+let availablePools = [];
+let chartUpdateInterval = null;
+
+// Colores para las líneas de los pools (reutilizables)
+const poolColors = [
+    { border: 'rgb(37, 99, 235)', bg: 'rgba(37, 99, 235, 0.1)' },
+    { border: 'rgb(16, 185, 129)', bg: 'rgba(16, 185, 129, 0.1)' },
+    { border: 'rgb(245, 158, 11)', bg: 'rgba(245, 158, 11, 0.1)' },
+    { border: 'rgb(239, 68, 68)', bg: 'rgba(239, 68, 68, 0.1)' },
+    { border: 'rgb(139, 92, 246)', bg: 'rgba(139, 92, 246, 0.1)' },
+    { border: 'rgb(236, 72, 153)', bg: 'rgba(236, 72, 153, 0.1)' },
+    { border: 'rgb(6, 182, 212)', bg: 'rgba(6, 182, 212, 0.1)' },
+    { border: 'rgb(251, 146, 60)', bg: 'rgba(251, 146, 60, 0.1)' },
+    { border: 'rgb(34, 197, 94)', bg: 'rgba(34, 197, 94, 0.1)' },
+    { border: 'rgb(168, 85, 247)', bg: 'rgba(168, 85, 247, 0.1)' }
+];
+
 // Inicializar la aplicación
 document.addEventListener('DOMContentLoaded', () => {
     initializeCharts();
     initializeSignalR();
     loadInitialData();
+    loadHistoricalData();
+
+    // Actualizar gráficas cada 5 segundos
+    chartUpdateInterval = setInterval(loadHistoricalData, 5000);
 });
 
 // Inicializar conexión SignalR
@@ -28,6 +52,7 @@ async function initializeSignalR() {
     connection.onreconnected(() => {
         updateConnectionStatus('Conectado', 'status-connected');
         loadInitialData();
+        loadHistoricalData();
     });
 
     connection.onclose(() => {
@@ -41,7 +66,6 @@ async function initializeSignalR() {
     } catch (err) {
         console.error('Error al conectar SignalR:', err);
         updateConnectionStatus('Error de conexión', 'status-disconnected');
-        // Reintentar después de 5 segundos
         setTimeout(() => initializeSignalR(), 5000);
     }
 }
@@ -68,6 +92,91 @@ async function loadInitialData() {
     }
 }
 
+// Cargar datos históricos
+async function loadHistoricalData() {
+    try {
+        const response = await fetch('/api/monitoring/historical');
+        if (response.ok) {
+            historicalData = await response.json();
+
+            // Si es la primera carga, inicializar el selector de pools
+            if (availablePools.length === 0 && historicalData.availablePools.length > 0) {
+                availablePools = historicalData.availablePools;
+                initializePoolSelector();
+            }
+
+            // Actualizar gráficas
+            updateHistoricalCharts();
+        } else {
+            console.error('Error al cargar datos históricos:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Error al cargar datos históricos:', error);
+    }
+}
+
+// Inicializar selector de pools
+function initializePoolSelector() {
+    const selectorDiv = document.getElementById('poolSelector');
+
+    if (availablePools.length === 0) {
+        selectorDiv.innerHTML = '<span class="loading-text">No hay pools disponibles</span>';
+        return;
+    }
+
+    // Seleccionar todos los pools por defecto
+    selectedPools = new Set(availablePools);
+
+    // Crear checkboxes para cada pool
+    selectorDiv.innerHTML = availablePools.map((pool, index) => `
+        <div class="pool-checkbox-wrapper selected" data-pool="${pool}">
+            <input type="checkbox" id="pool-${index}" value="${pool}" checked onchange="togglePool('${pool}')">
+            <label for="pool-${index}">${pool}</label>
+        </div>
+    `).join('');
+}
+
+// Toggle selección de pool
+window.togglePool = function(poolName) {
+    const wrapper = document.querySelector(`[data-pool="${poolName}"]`);
+
+    if (selectedPools.has(poolName)) {
+        selectedPools.delete(poolName);
+        wrapper.classList.remove('selected');
+    } else {
+        selectedPools.add(poolName);
+        wrapper.classList.add('selected');
+    }
+
+    updateHistoricalCharts();
+};
+
+// Seleccionar todos los pools
+window.selectAllPools = function() {
+    selectedPools = new Set(availablePools);
+
+    document.querySelectorAll('.pool-checkbox-wrapper').forEach(wrapper => {
+        wrapper.classList.add('selected');
+        const checkbox = wrapper.querySelector('input[type="checkbox"]');
+        checkbox.checked = true;
+    });
+
+    updateHistoricalCharts();
+};
+
+// Deseleccionar todos los pools
+window.deselectAllPools = function() {
+    selectedPools.clear();
+
+    document.querySelectorAll('.pool-checkbox-wrapper').forEach(wrapper => {
+        wrapper.classList.remove('selected');
+        const checkbox = wrapper.querySelector('input[type="checkbox"]');
+        checkbox.checked = false;
+    });
+
+    updateHistoricalCharts();
+};
+
 // Actualizar dashboard completo
 function updateDashboard(data) {
     if (!data) return;
@@ -84,7 +193,6 @@ function updateDashboard(data) {
     // Actualizar application pools
     if (data.applicationPools) {
         updateApplicationPoolsTable(data.applicationPools);
-        updateCharts(data.applicationPools);
     }
 
     // Actualizar sitios web
@@ -152,7 +260,6 @@ function updateWebSitesTable(websites) {
             ? `<button class="action-btn btn-stop" onclick="controlWebSite('${site.name}', 'stop')">⏹ Parar</button>`
             : `<button class="action-btn btn-start" onclick="controlWebSite('${site.name}', 'start')">▶ Arrancar</button>`;
 
-        // Botón para abrir el sitio web
         const openButton = site.bindings && site.bindings.length > 0
             ? `<button class="action-btn btn-open" onclick="openWebSite('${site.bindings[0].replace(/'/g, "\\'")}')">🌐 Abrir</button>`
             : '';
@@ -177,112 +284,158 @@ function updateWebSitesTable(websites) {
     }).join('');
 }
 
-// Inicializar gráficos
+// Inicializar gráficos (como líneas temporales)
 function initializeCharts() {
     const cpuCtx = document.getElementById('cpuChart').getContext('2d');
     const memoryCtx = document.getElementById('memoryChart').getContext('2d');
 
-    cpuChart = new Chart(cpuCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'CPU %',
-                data: [],
-                backgroundColor: 'rgba(37, 99, 235, 0.8)',
-                borderColor: 'rgba(37, 99, 235, 1)',
-                borderWidth: 1
-            }]
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+            }
+        },
+        scales: {
+            x: {
+                type: 'time',
+                time: {
+                    unit: 'minute',
+                    displayFormats: {
+                        minute: 'HH:mm'
                     }
+                },
+                title: {
+                    display: true,
+                    text: 'Tiempo'
                 }
             },
-            plugins: {
-                legend: {
-                    display: false
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+
+    cpuChart = new Chart(cpuCtx, {
+        type: 'line',
+        data: {
+            datasets: []
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                ...commonOptions.scales,
+                y: {
+                    ...commonOptions.scales.y,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'CPU (%)'
+                    }
                 }
             }
         }
     });
 
     memoryChart = new Chart(memoryCtx, {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: [],
-            datasets: [{
-                label: 'Memoria (MB)',
-                data: [],
-                backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                borderColor: 'rgba(16, 185, 129, 1)',
-                borderWidth: 1
-            }]
+            datasets: []
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            ...commonOptions,
             scales: {
+                ...commonOptions.scales,
                 y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value + ' MB';
-                        }
+                    ...commonOptions.scales.y,
+                    title: {
+                        display: true,
+                        text: 'Memoria (MB)'
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
                 }
             }
         }
     });
 }
 
-// Actualizar gráficos
-function updateCharts(appPools) {
-    if (!appPools || appPools.length === 0) return;
+// Actualizar gráficas con datos históricos
+function updateHistoricalCharts() {
+    if (!historicalData || !historicalData.poolData) return;
 
-    // Filtrar solo los app pools activos para los gráficos
-    const activeAppPools = appPools.filter(pool => pool.isEnabled);
+    // Preparar datasets para CPU
+    const cpuDatasets = [];
+    const memoryDatasets = [];
 
-    // Actualizar gráfico de CPU
-    cpuChart.data.labels = activeAppPools.map(pool => pool.name);
-    cpuChart.data.datasets[0].data = activeAppPools.map(pool => pool.cpuUsage);
-    cpuChart.update('none'); // 'none' para actualización sin animación
+    let colorIndex = 0;
+    Array.from(selectedPools).sort().forEach(poolName => {
+        const poolData = historicalData.poolData[poolName];
+        if (!poolData || poolData.length === 0) return;
 
-    // Actualizar gráfico de memoria
-    memoryChart.data.labels = activeAppPools.map(pool => pool.name);
-    memoryChart.data.datasets[0].data = activeAppPools.map(pool => pool.memoryUsageMB);
+        const color = poolColors[colorIndex % poolColors.length];
+        colorIndex++;
+
+        // Dataset para CPU
+        cpuDatasets.push({
+            label: poolName,
+            data: poolData.map(point => ({
+                x: new Date(point.timestamp),
+                y: point.cpuUsage
+            })),
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true
+        });
+
+        // Dataset para Memoria
+        memoryDatasets.push({
+            label: poolName,
+            data: poolData.map(point => ({
+                x: new Date(point.timestamp),
+                y: point.memoryUsageMB
+            })),
+            borderColor: color.border,
+            backgroundColor: color.bg,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true
+        });
+    });
+
+    // Actualizar gráfica de CPU
+    cpuChart.data.datasets = cpuDatasets;
+    cpuChart.update('none');
+
+    // Actualizar gráfica de Memoria
+    memoryChart.data.datasets = memoryDatasets;
     memoryChart.update('none');
 }
 
 // Función para refrescar manualmente (opcional)
 window.refreshDashboard = function() {
     loadInitialData();
+    loadHistoricalData();
 };
 
 // Función para cambiar entre pestañas
 window.switchTab = function(tabName) {
-    // Remover clase active de todos los botones y contenidos
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
     tabButtons.forEach(button => button.classList.remove('active'));
     tabContents.forEach(content => content.classList.remove('active'));
 
-    // Activar la pestaña seleccionada
     const activeButton = Array.from(tabButtons).find(btn =>
         btn.textContent.includes(tabName === 'appPools' ? 'Application Pools' : 'Sitios Web')
     );
@@ -310,7 +463,6 @@ window.controlAppPool = async function(poolName, action) {
 
         if (response.ok && result.success) {
             console.log(`Application Pool ${poolName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
-            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
             setTimeout(() => loadInitialData(), 1000);
         } else {
             console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Application Pool:`, result.message);
@@ -344,7 +496,6 @@ window.controlWebSite = async function(siteName, action) {
 
         if (response.ok && result.success) {
             console.log(`Sitio Web ${siteName} ${action === 'start' ? 'iniciado' : 'detenido'} correctamente`);
-            // Recargar datos después de un breve delay para permitir que IIS actualice el estado
             setTimeout(() => loadInitialData(), 1000);
         } else {
             console.error(`Error al ${action === 'start' ? 'iniciar' : 'detener'} Sitio Web:`, result.message);
@@ -363,25 +514,20 @@ window.controlWebSite = async function(siteName, action) {
 // Función para abrir sitio web en nueva pestaña
 window.openWebSite = function(binding) {
     try {
-        // Parsear el binding (formato: "http://*:80", "https://example.com:443", etc.)
         let url = binding;
 
-        // Si el binding tiene un asterisco (*), reemplazarlo con localhost
         if (url.includes('*')) {
             url = url.replace('*', 'localhost');
         }
 
-        // Si el binding no tiene host específico, usar localhost
         if (url.includes(':/:') || url.includes(':///:')) {
             url = url.replace(':///', '://localhost/').replace('://', '://localhost:');
         }
 
-        // Asegurar que la URL tenga el protocolo correcto
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'http://' + url;
         }
 
-        // Abrir en nueva pestaña
         window.open(url, '_blank');
         console.log(`Abriendo sitio web: ${url}`);
     } catch (error) {
