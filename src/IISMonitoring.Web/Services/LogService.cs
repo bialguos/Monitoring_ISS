@@ -73,6 +73,8 @@ public class LogService : ILogService
         string? level = null,
         string? search = null)
     {
+        var response = new LogContentResponse();
+
         try
         {
             // Decodificar la ruta del archivo desde Base64
@@ -88,10 +90,7 @@ public class LogService : ILogService
                 };
             }
 
-            var response = new LogContentResponse
-            {
-                FileName = Path.GetFileName(filePath)
-            };
+            response.FileName = Path.GetFileName(filePath);
 
             // Leer todas las líneas del archivo
             var allLines = await File.ReadAllLinesAsync(filePath);
@@ -121,7 +120,7 @@ public class LogService : ILogService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al leer el contenido del archivo de log: {FileName}", fileName);
+            _logger.LogError(ex, "Error al leer el contenido del archivo de log: {FileIdentifier}", fileIdentifier);
         }
 
         return response;
