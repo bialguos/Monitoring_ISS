@@ -50,6 +50,12 @@ public class LogService : ILogService
             // 3. Buscar logs en los directorios físicos de los sitios web de IIS
             await ScanIISSitesForLogs(logDirectories, response.LogFiles);
 
+            // 4. Eliminar duplicados basándose en la ruta completa del archivo
+            response.LogFiles = response.LogFiles
+                .GroupBy(f => f.FullPath)
+                .Select(g => g.First())
+                .ToList();
+
             response.LogDirectories = logDirectories.OrderBy(d => d).ToList();
             response.TotalFiles = response.LogFiles.Count;
             response.TotalSizeBytes = response.LogFiles.Sum(f => f.SizeBytes);
