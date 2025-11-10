@@ -123,15 +123,22 @@ public class LogService : ILogService
     }
 
     /// <summary>
-    /// Escanea un directorio en busca de archivos .log
+    /// Escanea un directorio en busca de archivos de log (*.log y log-*)
     /// </summary>
     private async Task ScanDirectoryForLogs(string directory, List<LogFileInfo> logFiles, string? iisSiteName = null)
     {
         try
         {
-            var files = Directory.GetFiles(directory, "*.log");
+            // Buscar archivos con extensión .log
+            var logExtFiles = Directory.GetFiles(directory, "*.log");
 
-            foreach (var file in files)
+            // Buscar archivos que empiecen con "log-"
+            var logPrefixFiles = Directory.GetFiles(directory, "log-*");
+
+            // Combinar y eliminar duplicados
+            var allFiles = logExtFiles.Union(logPrefixFiles).Distinct().ToList();
+
+            foreach (var file in allFiles)
             {
                 var fileInfo = new FileInfo(file);
                 var lineCount = await CountLines(file);

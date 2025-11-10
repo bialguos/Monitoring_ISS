@@ -6,6 +6,7 @@ let currentLevel = '';
 let currentSearch = '';
 let totalLines = 0;
 let hasMore = false;
+let currentSiteFilter = '';
 
 // API Base URL
 const API_BASE = '/api/logs';
@@ -13,6 +14,7 @@ const API_BASE = '/api/logs';
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     initializeEventListeners();
+    loadIISSites();
     loadLogFiles();
 });
 
@@ -27,6 +29,12 @@ function initializeEventListeners() {
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
 
+    // Filtro por sitio IIS
+    document.getElementById('siteFilter').addEventListener('change', (e) => {
+        currentSiteFilter = e.target.value;
+        loadLogFiles();
+    });
+
     // Enter en el campo de búsqueda
     document.getElementById('searchFilter').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -40,11 +48,41 @@ function initializeEventListeners() {
 }
 
 /**
+ * Carga la lista de sitios IIS
+ */
+async function loadIISSites() {
+    try {
+        const response = await fetch(`${API_BASE}/iis-sites`);
+        if (!response.ok) {
+            throw new Error('Error al cargar los sitios IIS');
+        }
+
+        const sites = await response.json();
+        const siteFilter = document.getElementById('siteFilter');
+
+        // Añadir opciones de sitios
+        sites.forEach(site => {
+            const option = document.createElement('option');
+            option.value = site;
+            option.textContent = site;
+            siteFilter.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error al cargar sitios IIS:', error);
+    }
+}
+
+/**
  * Carga la lista de archivos de log disponibles
  */
 async function loadLogFiles() {
     try {
-        const response = await fetch(`${API_BASE}/files`);
+        let url = `${API_BASE}/files`;
+        if (currentSiteFilter) {
+            url += `?iisSite=${encodeURIComponent(currentSiteFilter)}`;
+        }
+
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Error al cargar los archivos de log');
         }

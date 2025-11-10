@@ -13,23 +13,58 @@ public class LogsController : ControllerBase
 {
     private readonly ILogService _logService;
     private readonly ILogger<LogsController> _logger;
+    private readonly IIISMonitoringService _iisMonitoringService;
 
-    public LogsController(ILogService logService, ILogger<LogsController> logger)
+    public LogsController(ILogService logService, ILogger<LogsController> logger, IIISMonitoringService iisMonitoringService)
     {
         _logService = logService;
         _logger = logger;
+        _iisMonitoringService = iisMonitoringService;
+    }
+
+    /// <summary>
+    /// Obtiene la lista de sitios IIS disponibles
+    /// </summary>
+    /// <returns>Lista de nombres de sitios IIS</returns>
+    [HttpGet("iis-sites")]
+    public async Task<ActionResult<IEnumerable<string>>> GetIISSites()
+    {
+        try
+        {
+            var sites = await _iisMonitoringService.GetWebSitesAsync();
+            var siteNames = sites.Select(s => s.Name).OrderBy(n => n).ToList();
+            return Ok(siteNames);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener la lista de sitios IIS");
+            return StatusCode(500, new { error = "Error al obtener la lista de sitios IIS" });
+        }
     }
 
     /// <summary>
     /// Obtiene la lista de archivos de log disponibles
     /// </summary>
+    /// <param name="iisSite">Filtrar logs por sitio IIS específico (opcional)</param>
     /// <returns>Lista de archivos de log y directorios</returns>
     [HttpGet("files")]
-    public async Task<ActionResult<LogFilesResponse>> GetLogFiles()
+    public async Task<ActionResult<LogFilesResponse>> GetLogFiles([FromQuery] string? iisSite = null)
     {
         try
         {
             var response = await _logService.GetLogFilesAsync();
+
+            // Filtrar por sitio IIS si se especifica
+            if (!string.IsNullOrWhiteSpace(iisSite))
+            {
+                response.LogFiles = response.LogFiles
+                    .Where(f => f.IISSiteName != null && f.IISSiteName.Equals(iisSite, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                response.TotalFiles = response.LogFiles.Count;
+                response.TotalSizeBytes = response.LogFiles.Sum(f => f.SizeBytes);
+            }
+
             return Ok(response);
         }
         catch (Exception ex)

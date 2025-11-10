@@ -23,7 +23,18 @@
 
         <!-- Sección de Archivos de Log -->
         <section class="logs-files-section">
-            <h2>Archivos de Log Disponibles</h2>
+            <div class="section-header">
+                <h2>Archivos de Log Disponibles</h2>
+
+                <!-- Filtro por Sitio IIS -->
+                <div class="site-filter-container">
+                    <label for="siteFilter" class="site-filter-label">Filtrar por Sitio IIS:</label>
+                    <select id="siteFilter" class="site-filter-select">
+                        <option value="">Todos los sitios</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="logs-stats">
                 <div class="stat-item">
                     <span class="stat-label">Total de Archivos:</span>
