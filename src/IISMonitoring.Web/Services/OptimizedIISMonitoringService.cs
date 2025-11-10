@@ -304,20 +304,20 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
     {
         try
         {
-            var requestKey = $"AppPool_{appPoolName}_Requests";
-            var recycleKey = $"AppPool_{appPoolName}_Recycles";
+            var activeRequestKey = $"AppPool_{appPoolName}_ActiveRequests";
+            var totalRequestKey = $"AppPool_{appPoolName}_TotalRequests";
 
-            var requestCounter = GetOrCreateCounter("APP_POOL_WAS", "Current Application Pool State", appPoolName, requestKey);
-            var recycleCounter = GetOrCreateCounter("APP_POOL_WAS", "Total Application Pool Recycles", appPoolName, recycleKey);
+            var activeRequestCounter = GetOrCreateCounter("W3SVC_W3WP", "Active Requests", appPoolName, activeRequestKey);
+            var totalRequestCounter = GetOrCreateCounter("W3SVC_W3WP", "Total HTTP Requests Served", appPoolName, totalRequestKey);
 
-            if (requestCounter != null)
+            if (activeRequestCounter != null)
             {
-                appPoolInfo.ActiveRequests = (int)requestCounter.NextValue();
+                appPoolInfo.ActiveRequests = (int)activeRequestCounter.NextValue();
             }
 
-            if (recycleCounter != null)
+            if (totalRequestCounter != null)
             {
-                appPoolInfo.TotalRequests = (int)recycleCounter.NextValue();
+                appPoolInfo.TotalRequests = (int)totalRequestCounter.NextValue();
             }
         }
         catch (Exception ex)

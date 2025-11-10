@@ -27,6 +27,8 @@ const poolColors = [
 document.addEventListener('DOMContentLoaded', () => {
     initializeCharts();
     initializeSignalR();
+    initializePoolSelector();
+    initializeSortableHeaders();
     loadInitialData();
     loadHistoricalData();
 
@@ -272,7 +274,13 @@ function updateApplicationPoolsTable(appPools) {
 
     if (!appPools || appPools.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
+        currentAppPoolsData = [];
         return;
+    }
+
+    // Store data for sorting (only if not already sorted)
+    if (appPoolsSortState.column === null) {
+        currentAppPoolsData = appPools;
     }
 
     tbody.innerHTML = appPools.map(pool => {
@@ -306,7 +314,13 @@ function updateWebSitesTable(websites) {
 
     if (!websites || websites.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="loading">No hay datos disponibles</td></tr>';
+        currentWebSitesData = [];
         return;
+    }
+
+    // Store data for sorting (only if not already sorted)
+    if (webSitesSortState.column === null) {
+        currentWebSitesData = websites;
     }
 
     tbody.innerHTML = websites.map(site => {
@@ -590,3 +604,128 @@ window.openWebSite = function(binding) {
         alert(`Error al abrir el sitio web: ${error.message}`);
     }
 };
+
+// ==================== SORTING FUNCTIONALITY ====================
+
+// Global state for table sorting
+let currentAppPoolsData = [];
+let currentWebSitesData = [];
+let appPoolsSortState = { column: null, direction: null };
+let webSitesSortState = { column: null, direction: null };
+
+// Initialize sortable table headers
+function initializeSortableHeaders() {
+    // Application Pools table headers
+    const appPoolsHeaders = document.querySelectorAll('#appPoolsTable thead th');
+    appPoolsHeaders.forEach((header, index) => {
+        // Skip the last column (Acciones)
+        if (index < appPoolsHeaders.length - 1) {
+            header.classList.add('sortable');
+            header.addEventListener('click', () => sortAppPoolsTable(index));
+        }
+    });
+
+    // Web Sites table headers
+    const webSitesHeaders = document.querySelectorAll('#webSitesTable thead th');
+    webSitesHeaders.forEach((header, index) => {
+        // Skip the last column (Acciones)
+        if (index < webSitesHeaders.length - 1) {
+            header.classList.add('sortable');
+            header.addEventListener('click', () => sortWebSitesTable(index));
+        }
+    });
+}
+
+// Generic sorting function
+function sortData(data, columnIndex, currentDirection, getValueFn) {
+    const direction = currentDirection === 'asc' ? 'desc' : 'asc';
+
+    const sortedData = [...data].sort((a, b) => {
+        const valueA = getValueFn(a, columnIndex);
+        const valueB = getValueFn(b, columnIndex);
+
+        // Handle numeric values
+        if (!isNaN(valueA) && !isNaN(valueB)) {
+            return direction === 'asc' ? valueA - valueB : valueB - valueA;
+        }
+
+        // Handle string values
+        const strA = String(valueA).toLowerCase();
+        const strB = String(valueB).toLowerCase();
+
+        if (direction === 'asc') {
+            return strA.localeCompare(strB);
+        } else {
+            return strB.localeCompare(strA);
+        }
+    });
+
+    return { sortedData, direction };
+}
+
+// Update sort indicators
+function updateSortIndicators(tableId, columnIndex, direction) {
+    const headers = document.querySelectorAll(`#${tableId} thead th`);
+    headers.forEach((header, index) => {
+        header.classList.remove('sort-asc', 'sort-desc');
+        if (index === columnIndex) {
+            header.classList.add(`sort-${direction}`);
+        }
+    });
+}
+
+// Extract value from Application Pool for sorting
+function getAppPoolValue(pool, columnIndex) {
+    switch (columnIndex) {
+        case 0: return pool.name;
+        case 1: return pool.status;
+        case 2: return pool.isEnabled ? 1 : 0;
+        case 3: return pool.cpuUsage;
+        case 4: return pool.memoryUsageMB;
+        case 5: return pool.activeRequests;
+        case 6: return pool.totalRequests;
+        default: return '';
+    }
+}
+
+// Extract value from Web Site for sorting
+function getWebSiteValue(site, columnIndex) {
+    switch (columnIndex) {
+        case 0: return site.name;
+        case 1: return site.status;
+        case 2: return site.id;
+        case 3: return site.applicationPool;
+        case 4: return site.bindings.join(',');
+        case 5: return site.requestsPerSecond;
+        case 6: return site.currentConnections;
+        default: return '';
+    }
+}
+
+// Sort Application Pools table
+function sortAppPoolsTable(columnIndex) {
+    if (currentAppPoolsData.length === 0) return;
+
+    const currentDirection = appPoolsSortState.column === columnIndex ? appPoolsSortState.direction : null;
+    const { sortedData, direction } = sortData(currentAppPoolsData, columnIndex, currentDirection, getAppPoolValue);
+
+    appPoolsSortState = { column: columnIndex, direction };
+    currentAppPoolsData = sortedData;
+
+    updateApplicationPoolsTable(sortedData);
+    updateSortIndicators('appPoolsTable', columnIndex, direction);
+}
+
+// Sort Web Sites table
+function sortWebSitesTable(columnIndex) {
+    if (currentWebSitesData.length === 0) return;
+
+    const currentDirection = webSitesSortState.column === columnIndex ? webSitesSortState.direction : null;
+    const { sortedData, direction } = sortData(currentWebSitesData, columnIndex, currentDirection, getWebSiteValue);
+
+    webSitesSortState = { column: columnIndex, direction };
+    currentWebSitesData = sortedData;
+
+    updateWebSitesTable(sortedData);
+    updateSortIndicators('webSitesTable', columnIndex, direction);
+}

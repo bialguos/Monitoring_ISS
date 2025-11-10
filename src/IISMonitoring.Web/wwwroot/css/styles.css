@@ -157,6 +157,30 @@ th {
     text-align: left;
     font-weight: 600;
     font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+th:hover {
+    background-color: #1e40af;
+}
+
+th.sortable::after {
+    content: ' ⇅';
+    opacity: 0.3;
+    font-size: 0.8rem;
+}
+
+th.sort-asc::after {
+    content: ' ▲';
+    opacity: 1;
+}
+
+th.sort-desc::after {
+    content: ' ▼';
+    opacity: 1;
 }
 
 td {
