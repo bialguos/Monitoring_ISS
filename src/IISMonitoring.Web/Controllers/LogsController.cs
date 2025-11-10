@@ -77,15 +77,15 @@ public class LogsController : ControllerBase
     /// <summary>
     /// Obtiene el contenido de un archivo de log específico
     /// </summary>
-    /// <param name="fileName">Nombre del archivo de log</param>
+    /// <param name="fileId">Identificador del archivo (ruta completa codificada en Base64)</param>
     /// <param name="skip">Número de registros a saltar (paginación)</param>
     /// <param name="take">Número de registros a obtener (paginación)</param>
     /// <param name="level">Filtrar por nivel de log (Information, Warning, Error, Fatal, Debug, Verbose)</param>
     /// <param name="search">Buscar texto en el mensaje o excepción</param>
     /// <returns>Contenido del archivo de log parseado</returns>
-    [HttpGet("content/{fileName}")]
+    [HttpGet("content/{fileId}")]
     public async Task<ActionResult<LogContentResponse>> GetLogContent(
-        string fileName,
+        string fileId,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 100,
         [FromQuery] string? level = null,
@@ -94,9 +94,9 @@ public class LogsController : ControllerBase
         try
         {
             // Validar parámetros
-            if (string.IsNullOrWhiteSpace(fileName))
+            if (string.IsNullOrWhiteSpace(fileId))
             {
-                return BadRequest(new { error = "El nombre del archivo es requerido" });
+                return BadRequest(new { error = "El identificador del archivo es requerido" });
             }
 
             if (skip < 0)
@@ -109,13 +109,7 @@ public class LogsController : ControllerBase
                 return BadRequest(new { error = "El parámetro 'take' debe estar entre 1 y 1000" });
             }
 
-            // Sanitizar el nombre del archivo para prevenir path traversal
-            if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
-            {
-                return BadRequest(new { error = "Nombre de archivo inválido" });
-            }
-
-            var response = await _logService.GetLogContentAsync(fileName, skip, take, level, search);
+            var response = await _logService.GetLogContentAsync(fileId, skip, take, level, search);
 
             if (response.Entries.Count == 0 && response.TotalLines == 0)
             {
@@ -126,7 +120,7 @@ public class LogsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al obtener el contenido del archivo de log: {FileName}", fileName);
+            _logger.LogError(ex, "Error al obtener el contenido del archivo de log");
             return StatusCode(500, new { error = "Error al obtener el contenido del archivo de log" });
         }
     }

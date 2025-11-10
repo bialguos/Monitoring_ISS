@@ -1,5 +1,6 @@
 // Variables globales
 let currentFileName = null;
+let currentFileId = null; // Identificador del archivo (ruta codificada en Base64)
 let currentPage = 1;
 let pageSize = 50;
 let currentLevel = '';
@@ -147,7 +148,7 @@ function displayLogFiles(data) {
     }
 
     const html = data.logFiles.map(file => `
-        <div class="log-file-card ${file.iisSiteName ? 'iis-site-log' : ''}" onclick="loadLogContent('${file.fileName}')">
+        <div class="log-file-card ${file.iisSiteName ? 'iis-site-log' : ''}" onclick="loadLogContent('${escapeHtml(file.fullPath)}', '${escapeHtml(file.fileName)}')">
             <div class="log-file-header">
                 <h3>📄 ${file.fileName}</h3>
                 <span class="log-file-size">${file.sizeFormatted}</span>
@@ -177,8 +178,10 @@ function displayLogFiles(data) {
 /**
  * Carga el contenido de un archivo de log
  */
-async function loadLogContent(fileName) {
+async function loadLogContent(fullPath, fileName) {
     currentFileName = fileName;
+    // Codificar la ruta completa en Base64 para usarla como identificador
+    currentFileId = btoa(fullPath);
     currentPage = 1;
 
     // Mostrar sección de contenido
@@ -197,7 +200,7 @@ async function loadLogContent(fileName) {
 async function fetchLogContent() {
     try {
         const skip = (currentPage - 1) * pageSize;
-        let url = `${API_BASE}/content/${encodeURIComponent(currentFileName)}?skip=${skip}&take=${pageSize}`;
+        let url = `${API_BASE}/content/${encodeURIComponent(currentFileId)}?skip=${skip}&take=${pageSize}`;
 
         if (currentLevel) {
             url += `&level=${encodeURIComponent(currentLevel)}`;
@@ -306,6 +309,7 @@ function changePage(delta) {
 function closeLogViewer() {
     document.getElementById('logsContentSection').style.display = 'none';
     currentFileName = null;
+    currentFileId = null;
     currentPage = 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }

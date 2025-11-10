@@ -67,26 +67,31 @@ public class LogService : ILogService
 
     /// <inheritdoc />
     public async Task<LogContentResponse> GetLogContentAsync(
-        string fileName,
+        string fileIdentifier,
         int skip = 0,
         int take = 100,
         string? level = null,
         string? search = null)
     {
-        var response = new LogContentResponse
-        {
-            FileName = fileName
-        };
-
         try
         {
-            // Buscar el archivo en los directorios de logs
-            var filePath = await FindLogFile(fileName);
-            if (filePath == null)
+            // Decodificar la ruta del archivo desde Base64
+            var filePathBytes = Convert.FromBase64String(fileIdentifier);
+            var filePath = System.Text.Encoding.UTF8.GetString(filePathBytes);
+
+            if (!File.Exists(filePath))
             {
-                _logger.LogWarning("Archivo de log no encontrado: {FileName}", fileName);
-                return response;
+                _logger.LogWarning("Archivo de log no encontrado: {FilePath}", filePath);
+                return new LogContentResponse
+                {
+                    FileName = Path.GetFileName(filePath)
+                };
             }
+
+            var response = new LogContentResponse
+            {
+                FileName = Path.GetFileName(filePath)
+            };
 
             // Leer todas las líneas del archivo
             var allLines = await File.ReadAllLinesAsync(filePath);
@@ -206,28 +211,6 @@ public class LogService : ILogService
         {
             _logger.LogError(ex, "Error al buscar directorios de logs en: {RootDirectory}", rootDirectory);
         }
-    }
-
-    /// <summary>
-    /// Busca un archivo de log por nombre
-    /// </summary>
-    private async Task<string?> FindLogFile(string fileName)
-    {
-        var contentRoot = _environment.ContentRootPath;
-        var logsDir = Path.Combine(contentRoot, "logs");
-
-        // Buscar en el directorio principal de logs
-        var directPath = Path.Combine(logsDir, fileName);
-        if (File.Exists(directPath))
-            return directPath;
-
-        // Buscar recursivamente
-        var allLogFiles = new List<LogFileInfo>();
-        var logDirectories = new HashSet<string>();
-        await ScanForLogDirectories(contentRoot, logDirectories, allLogFiles);
-
-        var foundFile = allLogFiles.FirstOrDefault(f => f.FileName == fileName);
-        return foundFile?.FullPath;
     }
 
     /// <summary>
@@ -363,22 +346,6 @@ public class LogService : ILogService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al obtener sitios de IIS para buscar logs");
-        }
-    }
-
-    /// <summary>
-    /// Cuenta las líneas de un archivo
-    /// </summary>
-    private async Task<int> CountLines(string filePath)
-    {
-        try
-        {
-            var lines = await File.ReadAllLinesAsync(filePath);
-            return lines.Length;
-        }
-        catch
-        {
-            return 0;
         }
     }
 
