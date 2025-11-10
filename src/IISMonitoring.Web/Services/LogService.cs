@@ -71,7 +71,10 @@ public class LogService : ILogService
         int skip = 0,
         int take = 100,
         string? level = null,
-        string? search = null)
+        string? search = null,
+        DateTime? dateFrom = null,
+        DateTime? dateTo = null,
+        bool sortDescending = true)
     {
         var response = new LogContentResponse();
 
@@ -112,6 +115,22 @@ public class LogService : ILogService
                     (e.Exception?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
                     .ToList();
             }
+
+            // Aplicar filtro de fechas
+            if (dateFrom.HasValue)
+            {
+                entries = entries.Where(e => e.Timestamp >= dateFrom.Value).ToList();
+            }
+
+            if (dateTo.HasValue)
+            {
+                entries = entries.Where(e => e.Timestamp <= dateTo.Value).ToList();
+            }
+
+            // Aplicar ordenamiento
+            entries = sortDescending
+                ? entries.OrderByDescending(e => e.Timestamp).ToList()
+                : entries.OrderBy(e => e.Timestamp).ToList();
 
             // Aplicar paginación
             response.ReturnedLines = Math.Min(take, entries.Count - skip);

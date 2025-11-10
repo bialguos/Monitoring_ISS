@@ -444,10 +444,28 @@
 .btn-apply-filters {
     background-color: var(--primary-color, #2563eb);
     color: white;
+    position: relative;
 }
 
 .btn-apply-filters:hover {
     background-color: #1d4ed8;
+}
+
+.btn-apply-filters:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.btn-loading {
+    display: none;
+}
+
+.btn-apply-filters.loading .btn-text {
+    display: none;
+}
+
+.btn-apply-filters.loading .btn-loading {
+    display: inline;
 }
 
 .btn-clear-filters {
@@ -484,7 +502,7 @@
 }
 
 .logs-table thead {
-    background-color: #f9fafb;
+    background-color: var(--primary-color, #2563eb);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -494,8 +512,29 @@
     padding: 0.75rem;
     text-align: left;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
+    color: white;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.logs-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.logs-table th.sortable:hover {
+    background-color: #1d4ed8;
+}
+
+.sort-icon {
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.sort-icon.asc {
+    transform: rotate(180deg);
 }
 
 .logs-table td {

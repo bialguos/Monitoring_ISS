@@ -5,6 +5,9 @@ let currentPage = 1;
 let pageSize = 50;
 let currentLevel = '';
 let currentSearch = '';
+let currentDateFrom = '';
+let currentDateTo = '';
+let currentSortDescending = true; // Por defecto descendente
 let totalLines = 0;
 let hasMore = false;
 let currentSiteFilter = '';
@@ -42,6 +45,9 @@ function initializeEventListeners() {
             applyFilters();
         }
     });
+
+    // Ordenamiento por timestamp
+    document.getElementById('sortTimestamp').addEventListener('click', toggleSort);
 
     // Paginación
     document.getElementById('prevPage').addEventListener('click', () => changePage(-1));
@@ -226,6 +232,16 @@ async function fetchLogContent() {
             url += `&search=${encodeURIComponent(currentSearch)}`;
         }
 
+        if (currentDateFrom) {
+            url += `&dateFrom=${encodeURIComponent(currentDateFrom)}`;
+        }
+
+        if (currentDateTo) {
+            url += `&dateTo=${encodeURIComponent(currentDateTo)}`;
+        }
+
+        url += `&sortDesc=${currentSortDescending}`;
+
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Error al cargar el contenido del log');
@@ -291,11 +307,24 @@ function displayLogContent(data) {
 /**
  * Aplica los filtros seleccionados
  */
-function applyFilters() {
+async function applyFilters() {
+    const applyBtn = document.getElementById('applyFilters');
+
+    // Mostrar indicador de carga
+    applyBtn.classList.add('loading');
+    applyBtn.disabled = true;
+
     currentLevel = document.getElementById('levelFilter').value;
     currentSearch = document.getElementById('searchFilter').value;
+    currentDateFrom = document.getElementById('dateFromFilter').value;
+    currentDateTo = document.getElementById('dateToFilter').value;
     currentPage = 1;
-    fetchLogContent();
+
+    await fetchLogContent();
+
+    // Ocultar indicador de carga
+    applyBtn.classList.remove('loading');
+    applyBtn.disabled = false;
 }
 
 /**
@@ -304,8 +333,12 @@ function applyFilters() {
 function clearFilters() {
     document.getElementById('levelFilter').value = '';
     document.getElementById('searchFilter').value = '';
+    document.getElementById('dateFromFilter').value = '';
+    document.getElementById('dateToFilter').value = '';
     currentLevel = '';
     currentSearch = '';
+    currentDateFrom = '';
+    currentDateTo = '';
     currentPage = 1;
     fetchLogContent();
 }
@@ -328,6 +361,23 @@ function closeLogViewer() {
     currentFileId = null;
     currentPage = 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Alterna el orden de clasificación por fecha
+ */
+function toggleSort() {
+    currentSortDescending = !currentSortDescending;
+    const sortIcon = document.querySelector('.sort-icon');
+
+    if (currentSortDescending) {
+        sortIcon.classList.remove('asc');
+    } else {
+        sortIcon.classList.add('asc');
+    }
+
+    currentPage = 1;
+    fetchLogContent();
 }
 
 /**

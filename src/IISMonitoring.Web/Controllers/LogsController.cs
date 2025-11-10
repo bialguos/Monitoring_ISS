@@ -82,6 +82,9 @@ public class LogsController : ControllerBase
     /// <param name="take">Número de registros a obtener (paginación)</param>
     /// <param name="level">Filtrar por nivel de log (Information, Warning, Error, Fatal, Debug, Verbose)</param>
     /// <param name="search">Buscar texto en el mensaje o excepción</param>
+    /// <param name="dateFrom">Filtrar desde fecha</param>
+    /// <param name="dateTo">Filtrar hasta fecha</param>
+    /// <param name="sortDesc">Ordenar descendente por fecha (por defecto true)</param>
     /// <returns>Contenido del archivo de log parseado</returns>
     [HttpGet("content/{fileId}")]
     public async Task<ActionResult<LogContentResponse>> GetLogContent(
@@ -89,7 +92,10 @@ public class LogsController : ControllerBase
         [FromQuery] int skip = 0,
         [FromQuery] int take = 100,
         [FromQuery] string? level = null,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null,
+        [FromQuery] bool sortDesc = true)
     {
         try
         {
@@ -109,7 +115,7 @@ public class LogsController : ControllerBase
                 return BadRequest(new { error = "El parámetro 'take' debe estar entre 1 y 1000" });
             }
 
-            var response = await _logService.GetLogContentAsync(fileId, skip, take, level, search);
+            var response = await _logService.GetLogContentAsync(fileId, skip, take, level, search, dateFrom, dateTo, sortDesc);
 
             if (response.Entries.Count == 0 && response.TotalLines == 0)
             {

@@ -86,7 +86,20 @@
                     <input type="text" id="searchFilter" class="filter-input" placeholder="Buscar en mensajes...">
                 </div>
 
-                <button id="applyFilters" class="btn-apply-filters">Aplicar Filtros</button>
+                <div class="filter-group">
+                    <label for="dateFromFilter">Fecha desde:</label>
+                    <input type="datetime-local" id="dateFromFilter" class="filter-input">
+                </div>
+
+                <div class="filter-group">
+                    <label for="dateToFilter">Fecha hasta:</label>
+                    <input type="datetime-local" id="dateToFilter" class="filter-input">
+                </div>
+
+                <button id="applyFilters" class="btn-apply-filters">
+                    <span class="btn-text">Aplicar Filtros</span>
+                    <span class="btn-loading" style="display: none;">⏳ Buscando...</span>
+                </button>
                 <button id="clearFilters" class="btn-clear-filters">Limpiar</button>
             </div>
 
@@ -100,7 +113,9 @@
                 <table class="logs-table" id="logsTable">
                     <thead>
                         <tr>
-                            <th class="col-timestamp">Timestamp</th>
+                            <th class="col-timestamp sortable" id="sortTimestamp">
+                                Timestamp <span class="sort-icon">▼</span>
+                            </th>
                             <th class="col-level">Nivel</th>
                             <th class="col-message">Mensaje</th>
                         </tr>
