@@ -120,12 +120,17 @@ function displayLogDirectories(directories) {
     }
 
     const html = `
-        <div class="directories-list">
-            <h3>📁 Directorios de Logs:</h3>
-            <ul>
-                ${directories.map(dir => `<li><code>${dir}</code></li>`).join('')}
-            </ul>
-        </div>
+        <details class="directories-collapsible">
+            <summary class="directories-summary">
+                📁 Directorios de Logs (${directories.length})
+                <span class="toggle-icon">▼</span>
+            </summary>
+            <div class="directories-content">
+                <ul class="directories-list">
+                    ${directories.map(dir => `<li><code>${dir}</code></li>`).join('')}
+                </ul>
+            </div>
+        </details>
     `;
     container.innerHTML = html;
 }
