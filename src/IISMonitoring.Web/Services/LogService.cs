@@ -30,7 +30,8 @@ public class LogService : ILogService
     public async Task<LogFilesResponse> GetLogFilesAsync()
     {
         var response = new LogFilesResponse();
-        var logDirectories = new HashSet<string>();
+        // Usar StringComparer.OrdinalIgnoreCase para evitar duplicados por mayúsculas/minúsculas en Windows
+        var logDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -51,8 +52,9 @@ public class LogService : ILogService
             await ScanIISSitesForLogs(logDirectories, response.LogFiles);
 
             // 4. Eliminar duplicados basándose en la ruta completa del archivo
+            // Usar StringComparer.OrdinalIgnoreCase para Windows (rutas case-insensitive)
             response.LogFiles = response.LogFiles
-                .GroupBy(f => f.FullPath)
+                .GroupBy(f => f.FullPath, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .ToList();
 
@@ -101,8 +103,19 @@ public class LogService : ILogService
 
             response.FileName = Path.GetFileName(filePath);
 
-            // Leer todas las líneas del archivo
-            var allLines = await File.ReadAllLinesAsync(filePath);
+            // Leer todas las líneas del archivo con FileShare para permitir lectura mientras otro proceso escribe
+            string[] allLines;
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = new StreamReader(fileStream))
+            {
+                var linesList = new List<string>();
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    linesList.Add(line);
+                }
+                allLines = linesList.ToArray();
+            }
             response.TotalLines = allLines.Length;
 
             // Parsear las líneas
