@@ -338,12 +338,22 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
                 foreach (var site in serverManager.Sites)
                 {
+                    var rootApp = site.Applications["/"];
+                    var physicalPath = string.Empty;
+
+                    // Obtener la ruta física del directorio virtual raíz
+                    if (rootApp != null && rootApp.VirtualDirectories.Count > 0)
+                    {
+                        physicalPath = rootApp.VirtualDirectories["/"]?.PhysicalPath ?? string.Empty;
+                    }
+
                     var siteInfo = new WebSiteInfo
                     {
                         Name = site.Name,
                         Id = (int)site.Id,
                         Status = site.State.ToString(),
-                        ApplicationPool = site.Applications["/"]?.ApplicationPoolName ?? "N/A",
+                        ApplicationPool = rootApp?.ApplicationPoolName ?? "N/A",
+                        PhysicalPath = physicalPath,
                         Bindings = site.Bindings.Select(b => $"{b.Protocol}://{b.Host}:{b.EndPoint.Port}").ToList()
                     };
 

@@ -109,11 +109,16 @@ function displayLogFiles(data) {
     }
 
     const html = data.logFiles.map(file => `
-        <div class="log-file-card" onclick="loadLogContent('${file.fileName}')">
+        <div class="log-file-card ${file.iisSiteName ? 'iis-site-log' : ''}" onclick="loadLogContent('${file.fileName}')">
             <div class="log-file-header">
                 <h3>📄 ${file.fileName}</h3>
                 <span class="log-file-size">${file.sizeFormatted}</span>
             </div>
+            ${file.iisSiteName ? `
+                <div class="iis-site-badge">
+                    🌐 Sitio IIS: <strong>${escapeHtml(file.iisSiteName)}</strong>
+                </div>
+            ` : ''}
             <div class="log-file-details">
                 <div class="detail-item">
                     <span class="detail-label">Directorio:</span>

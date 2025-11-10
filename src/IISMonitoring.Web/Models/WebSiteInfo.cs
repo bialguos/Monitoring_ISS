@@ -7,6 +7,7 @@ public class WebSiteInfo
     public int Id { get; set; }
     public List<string> Bindings { get; set; } = new();
     public string ApplicationPool { get; set; } = string.Empty;
+    public string PhysicalPath { get; set; } = string.Empty;
     public long RequestsPerSecond { get; set; }
     public long BytesSentPerSecond { get; set; }
     public long BytesReceivedPerSecond { get; set; }

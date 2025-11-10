@@ -11,6 +11,7 @@ public class LogService : ILogService
 {
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<LogService> _logger;
+    private readonly IIISMonitoringService _iisMonitoringService;
 
     // Patrón regex para parsear logs de Serilog
     // Formato: 2025-11-10 10:30:45.123 +00:00 [INF] Mensaje del log
@@ -18,10 +19,11 @@ public class LogService : ILogService
         @"^(?<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+[+-]\d{2}:\d{2})\s+\[(?<level>\w{3})\]\s+(?<message>.*)$",
         RegexOptions.Compiled | RegexOptions.Multiline);
 
-    public LogService(IWebHostEnvironment environment, ILogger<LogService> logger)
+    public LogService(IWebHostEnvironment environment, ILogger<LogService> logger, IIISMonitoringService iisMonitoringService)
     {
         _environment = environment;
         _logger = logger;
+        _iisMonitoringService = iisMonitoringService;
     }
 
     /// <inheritdoc />
@@ -32,7 +34,7 @@ public class LogService : ILogService
 
         try
         {
-            // Buscar directorios "logs" desde el directorio raíz del contenido
+            // 1. Buscar directorios "logs" desde el directorio raíz del contenido de la aplicación
             var contentRoot = _environment.ContentRootPath;
             var logsDir = Path.Combine(contentRoot, "logs");
 
@@ -42,8 +44,11 @@ public class LogService : ILogService
                 await ScanDirectoryForLogs(logsDir, response.LogFiles);
             }
 
-            // Buscar recursivamente otros directorios llamados "logs"
+            // 2. Buscar recursivamente otros directorios llamados "logs" en la aplicación
             await ScanForLogDirectories(contentRoot, logDirectories, response.LogFiles);
+
+            // 3. Buscar logs en los directorios físicos de los sitios web de IIS
+            await ScanIISSitesForLogs(logDirectories, response.LogFiles);
 
             response.LogDirectories = logDirectories.OrderBy(d => d).ToList();
             response.TotalFiles = response.LogFiles.Count;
@@ -120,7 +125,7 @@ public class LogService : ILogService
     /// <summary>
     /// Escanea un directorio en busca de archivos .log
     /// </summary>
-    private async Task ScanDirectoryForLogs(string directory, List<LogFileInfo> logFiles)
+    private async Task ScanDirectoryForLogs(string directory, List<LogFileInfo> logFiles, string? iisSiteName = null)
     {
         try
         {
@@ -139,7 +144,8 @@ public class LogService : ILogService
                     SizeFormatted = FormatFileSize(fileInfo.Length),
                     LastModified = fileInfo.LastWriteTime,
                     Directory = fileInfo.DirectoryName ?? string.Empty,
-                    LineCount = lineCount
+                    LineCount = lineCount,
+                    IISSiteName = iisSiteName
                 });
             }
         }
@@ -287,6 +293,66 @@ public class LogService : ILogService
             "FTL" => "Fatal",
             _ => shortLevel
         };
+    }
+
+    /// <summary>
+    /// Escanea los directorios físicos de los sitios web de IIS en busca de logs
+    /// </summary>
+    private async Task ScanIISSitesForLogs(HashSet<string> logDirectories, List<LogFileInfo> logFiles)
+    {
+        try
+        {
+            // Obtener la lista de sitios web de IIS
+            var webSites = await _iisMonitoringService.GetWebSitesAsync();
+
+            foreach (var site in webSites)
+            {
+                if (string.IsNullOrWhiteSpace(site.PhysicalPath))
+                    continue;
+
+                try
+                {
+                    // Expandir variables de entorno en la ruta física (ej: %SystemDrive%)
+                    var expandedPath = Environment.ExpandEnvironmentVariables(site.PhysicalPath);
+
+                    if (!Directory.Exists(expandedPath))
+                    {
+                        _logger.LogDebug("El directorio físico del sitio {SiteName} no existe: {Path}", site.Name, expandedPath);
+                        continue;
+                    }
+
+                    // Buscar directorio "logs" dentro del sitio
+                    var siteLogsDir = Path.Combine(expandedPath, "logs");
+                    if (Directory.Exists(siteLogsDir))
+                    {
+                        _logger.LogInformation("Directorio de logs encontrado para el sitio {SiteName}: {LogsDir}", site.Name, siteLogsDir);
+                        logDirectories.Add(siteLogsDir);
+                        await ScanDirectoryForLogs(siteLogsDir, logFiles, site.Name);
+                    }
+
+                    // Buscar también en subdirectorios comunes
+                    var commonLogPaths = new[] { "Logs", "Log", "log" };
+                    foreach (var logPath in commonLogPaths)
+                    {
+                        var logDir = Path.Combine(expandedPath, logPath);
+                        if (Directory.Exists(logDir) && !logDirectories.Contains(logDir))
+                        {
+                            _logger.LogInformation("Directorio de logs encontrado para el sitio {SiteName}: {LogsDir}", site.Name, logDir);
+                            logDirectories.Add(logDir);
+                            await ScanDirectoryForLogs(logDir, logFiles, site.Name);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al escanear logs del sitio {SiteName} en {PhysicalPath}", site.Name, site.PhysicalPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener sitios de IIS para buscar logs");
+        }
     }
 
     /// <summary>

@@ -39,4 +39,9 @@ public class LogFileInfo
     /// Número de líneas en el archivo (aproximado)
     /// </summary>
     public int LineCount { get; set; }
+
+    /// <summary>
+    /// Nombre del sitio de IIS al que pertenece (si aplica)
+    /// </summary>
+    public string? IISSiteName { get; set; }
 }
