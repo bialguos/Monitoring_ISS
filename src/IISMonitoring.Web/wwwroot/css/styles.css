@@ -333,6 +333,25 @@ footer {
     border-color: #d1d5db;
 }
 
+.btn-open {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #2563eb;
+}
+
+.btn-open:hover:not(:disabled) {
+    background-color: #2563eb;
+    color: white;
+}
+
+/* Container for action buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 /* Loading spinner for buttons */
 .btn-loading::after {
     content: "";

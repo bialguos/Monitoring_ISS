@@ -127,7 +127,11 @@ function updateApplicationPoolsTable(appPools) {
                 <td>${pool.memoryUsageMB.toLocaleString()} MB</td>
                 <td>${pool.activeRequests}</td>
                 <td>${pool.totalRequests.toLocaleString()}</td>
-                <td>${actionButton}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${actionButton}
+                    </div>
+                </td>
             </tr>
         `;
     }).join('');
@@ -148,6 +152,11 @@ function updateWebSitesTable(websites) {
             ? `<button class="action-btn btn-stop" onclick="controlWebSite('${site.name}', 'stop')">⏹ Parar</button>`
             : `<button class="action-btn btn-start" onclick="controlWebSite('${site.name}', 'start')">▶ Arrancar</button>`;
 
+        // Botón para abrir el sitio web
+        const openButton = site.bindings && site.bindings.length > 0
+            ? `<button class="action-btn btn-open" onclick="openWebSite('${site.bindings[0].replace(/'/g, "\\'")}')">🌐 Abrir</button>`
+            : '';
+
         return `
             <tr>
                 <td><strong>${site.name}</strong></td>
@@ -157,7 +166,12 @@ function updateWebSitesTable(websites) {
                 <td><small>${site.bindings.join('<br>')}</small></td>
                 <td>${site.requestsPerSecond.toLocaleString()}</td>
                 <td>${site.currentConnections}</td>
-                <td>${actionButton}</td>
+                <td>
+                    <div class="action-buttons">
+                        ${actionButton}
+                        ${openButton}
+                    </div>
+                </td>
             </tr>
         `;
     }).join('');
@@ -343,5 +357,35 @@ window.controlWebSite = async function(siteName, action) {
         alert(`Error de conexión: ${error.message}`);
         button.disabled = false;
         button.classList.remove('btn-loading');
+    }
+};
+
+// Función para abrir sitio web en nueva pestaña
+window.openWebSite = function(binding) {
+    try {
+        // Parsear el binding (formato: "http://*:80", "https://example.com:443", etc.)
+        let url = binding;
+
+        // Si el binding tiene un asterisco (*), reemplazarlo con localhost
+        if (url.includes('*')) {
+            url = url.replace('*', 'localhost');
+        }
+
+        // Si el binding no tiene host específico, usar localhost
+        if (url.includes(':/:') || url.includes(':///:')) {
+            url = url.replace(':///', '://localhost/').replace('://', '://localhost:');
+        }
+
+        // Asegurar que la URL tenga el protocolo correcto
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'http://' + url;
+        }
+
+        // Abrir en nueva pestaña
+        window.open(url, '_blank');
+        console.log(`Abriendo sitio web: ${url}`);
+    } catch (error) {
+        console.error('Error al abrir sitio web:', error);
+        alert(`Error al abrir el sitio web: ${error.message}`);
     }
 };
