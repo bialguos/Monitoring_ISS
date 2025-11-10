@@ -125,7 +125,7 @@ public class LogService : ILogService
     /// <summary>
     /// Escanea un directorio en busca de archivos de log (*.log y log-*)
     /// </summary>
-    private async Task ScanDirectoryForLogs(string directory, List<LogFileInfo> logFiles, string? iisSiteName = null)
+    private Task ScanDirectoryForLogs(string directory, List<LogFileInfo> logFiles, string? iisSiteName = null)
     {
         try
         {
@@ -141,7 +141,9 @@ public class LogService : ILogService
             foreach (var file in allFiles)
             {
                 var fileInfo = new FileInfo(file);
-                var lineCount = await CountLines(file);
+
+                // No contar líneas al listar archivos (optimización de rendimiento)
+                // El conteo de líneas solo se realiza cuando se abre el archivo específico
 
                 logFiles.Add(new LogFileInfo
                 {
@@ -151,7 +153,7 @@ public class LogService : ILogService
                     SizeFormatted = FormatFileSize(fileInfo.Length),
                     LastModified = fileInfo.LastWriteTime,
                     Directory = fileInfo.DirectoryName ?? string.Empty,
-                    LineCount = lineCount,
+                    LineCount = 0, // No se cuenta al listar por rendimiento
                     IISSiteName = iisSiteName
                 });
             }
@@ -160,6 +162,8 @@ public class LogService : ILogService
         {
             _logger.LogError(ex, "Error al escanear el directorio: {Directory}", directory);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

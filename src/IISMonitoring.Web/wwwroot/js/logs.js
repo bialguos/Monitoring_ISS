@@ -166,10 +166,6 @@ function displayLogFiles(data) {
                     <span class="detail-label">Última modificación:</span>
                     <span class="detail-value">${formatDate(file.lastModified)}</span>
                 </div>
-                <div class="detail-item">
-                    <span class="detail-label">Líneas:</span>
-                    <span class="detail-value">${file.lineCount.toLocaleString()}</span>
-                </div>
             </div>
             <button class="btn-view-log">Ver Contenido →</button>
         </div>
