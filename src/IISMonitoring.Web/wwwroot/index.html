@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIS Monitoring Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖥️ IIS Monitoring Dashboard</h1>
+            <div class="last-update">Última actualización: <span id="lastUpdate">--</span></div>
+        </header>
+
+        <!-- Métricas Generales -->
+        <section class="metrics-section">
+            <h2>📊 Métricas Generales del Sistema</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-icon">💻</div>
+                    <div class="metric-label">CPU Total</div>
+                    <div class="metric-value" id="totalCpu">--</div>
+                    <div class="metric-unit">%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🧠</div>
+                    <div class="metric-label">Memoria Usada</div>
+                    <div class="metric-value" id="totalMemory">--</div>
+                    <div class="metric-unit">MB</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">📦</div>
+                    <div class="metric-label">App Pools</div>
+                    <div class="metric-value" id="totalAppPools">--</div>
+                    <div class="metric-unit">Total</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">✅</div>
+                    <div class="metric-label">App Pools Activos</div>
+                    <div class="metric-value" id="runningAppPools">--</div>
+                    <div class="metric-unit">Running</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🌐</div>
+                    <div class="metric-label">Sitios Web</div>
+                    <div class="metric-value" id="totalWebSites">--</div>
+                    <div class="metric-unit">Total</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🟢</div>
+                    <div class="metric-label">Sitios Activos</div>
+                    <div class="metric-value" id="runningWebSites">--</div>
+                    <div class="metric-unit">Running</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gráficos -->
+        <section class="charts-section">
+            <div class="chart-container">
+                <h3>CPU por Application Pool</h3>
+                <canvas id="cpuChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Memoria por Application Pool</h3>
+                <canvas id="memoryChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Application Pools -->
+        <section class="table-section">
+            <h2>📦 Application Pools</h2>
+            <div class="table-responsive">
+                <table id="appPoolsTable">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Habilitado</th>
+                            <th>CPU %</th>
+                            <th>Memoria (MB)</th>
+                            <th>Requests Activos</th>
+                            <th>Total Requests</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="7" class="loading">Cargando datos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Sitios Web -->
+        <section class="table-section">
+            <h2>🌐 Sitios Web</h2>
+            <div class="table-responsive">
+                <table id="webSitesTable">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>ID</th>
+                            <th>Application Pool</th>
+                            <th>Bindings</th>
+                            <th>Req/sec</th>
+                            <th>Conexiones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="7" class="loading">Cargando datos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>IIS Monitoring Dashboard - ASP.NET Core 8.0</p>
+            <div class="connection-status">
+                Estado de conexión: <span id="connectionStatus" class="status-disconnected">Desconectado</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
