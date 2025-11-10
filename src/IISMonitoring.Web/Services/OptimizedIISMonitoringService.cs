@@ -100,7 +100,11 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
             try
             {
+                _logger.LogInformation("Intentando obtener Application Pools de IIS...");
                 using var serverManager = new ServerManager();
+
+                var poolsCount = serverManager.ApplicationPools.Count;
+                _logger.LogInformation("Se encontraron {PoolsCount} Application Pools en IIS", poolsCount);
 
                 foreach (var appPool in serverManager.ApplicationPools)
                 {
@@ -121,10 +125,20 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
                     appPools.Add(appPoolInfo);
                 }
+
+                _logger.LogInformation("Application Pools obtenidos exitosamente: {Count}", appPools.Count);
+            }
+            catch (UnauthorizedAccessException uaEx)
+            {
+                _logger.LogError(uaEx, "ERROR DE PERMISOS: No se tiene acceso a los Application Pools de IIS");
+            }
+            catch (System.Runtime.InteropServices.COMException comEx)
+            {
+                _logger.LogError(comEx, "ERROR DE COM al acceder a Application Pools. Código de error: {HResult}", comEx.HResult);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo Application Pools");
+                _logger.LogError(ex, "Error obteniendo Application Pools. Tipo de excepción: {ExceptionType}", ex.GetType().FullName);
             }
 
             return appPools;
@@ -334,16 +348,35 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
             try
             {
+                // Log del usuario actual para diagnóstico de permisos
+                var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent();
+                _logger.LogInformation("Intentando acceder a IIS con el usuario: {UserName} (IsSystem: {IsSystem}, IsAuthenticated: {IsAuthenticated})",
+                    currentUser.Name, currentUser.IsSystem, currentUser.IsAuthenticated);
+
                 using var serverManager = new ServerManager();
+                _logger.LogInformation("ServerManager creado exitosamente. Accediendo a sitios web...");
+
+                var sitesCount = serverManager.Sites.Count;
+                _logger.LogInformation("Se encontraron {SitesCount} sitios web en IIS", sitesCount);
 
                 foreach (var site in serverManager.Sites)
                 {
+                    var rootApp = site.Applications["/"];
+                    var physicalPath = string.Empty;
+
+                    // Obtener la ruta física del directorio virtual raíz
+                    if (rootApp != null && rootApp.VirtualDirectories.Count > 0)
+                    {
+                        physicalPath = rootApp.VirtualDirectories["/"]?.PhysicalPath ?? string.Empty;
+                    }
+
                     var siteInfo = new WebSiteInfo
                     {
                         Name = site.Name,
                         Id = (int)site.Id,
                         Status = site.State.ToString(),
-                        ApplicationPool = site.Applications["/"]?.ApplicationPoolName ?? "N/A",
+                        ApplicationPool = rootApp?.ApplicationPoolName ?? "N/A",
+                        PhysicalPath = physicalPath,
                         Bindings = site.Bindings.Select(b => $"{b.Protocol}://{b.Host}:{b.EndPoint.Port}").ToList()
                     };
 
@@ -354,10 +387,22 @@ public class OptimizedIISMonitoringService : IIISMonitoringService, IDisposable
 
                     webSites.Add(siteInfo);
                 }
+
+                _logger.LogInformation("Sitios web obtenidos exitosamente: {Count}", webSites.Count);
+            }
+            catch (UnauthorizedAccessException uaEx)
+            {
+                _logger.LogError(uaEx, "ERROR DE PERMISOS: No se tiene acceso a la configuración de IIS. " +
+                    "Verifica que el Application Pool tenga permisos de administrador o pertenezca al grupo IIS_IUSRS");
+            }
+            catch (System.Runtime.InteropServices.COMException comEx)
+            {
+                _logger.LogError(comEx, "ERROR DE COM: No se puede acceder a IIS. Código de error: {HResult}. " +
+                    "Esto puede indicar un problema de permisos o que IIS no está instalado correctamente", comEx.HResult);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error obteniendo sitios web");
+                _logger.LogError(ex, "Error obteniendo sitios web. Tipo de excepción: {ExceptionType}", ex.GetType().FullName);
             }
 
             return webSites;

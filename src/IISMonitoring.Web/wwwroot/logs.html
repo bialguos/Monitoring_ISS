@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor de Logs - IIS Monitoring</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/logs.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>📋 Visor de Logs</h1>
+                    <p class="subtitle">Visualización y análisis de logs de Serilog</p>
+                </div>
+                <div>
+                    <a href="index.html" class="btn-back">← Volver al Dashboard</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sección de Archivos de Log -->
+        <section class="logs-files-section">
+            <div class="section-header">
+                <h2>Archivos de Log Disponibles</h2>
+
+                <!-- Filtro por Sitio IIS -->
+                <div class="site-filter-container">
+                    <label for="siteFilter" class="site-filter-label">Filtrar por Sitio IIS:</label>
+                    <select id="siteFilter" class="site-filter-select">
+                        <option value="">Todos los sitios</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="logs-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total de Archivos:</span>
+                    <span class="stat-value" id="totalFiles">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tamaño Total:</span>
+                    <span class="stat-value" id="totalSize">0 B</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Directorios:</span>
+                    <span class="stat-value" id="totalDirs">0</span>
+                </div>
+            </div>
+
+            <!-- Lista de directorios -->
+            <div id="logDirectories" class="log-directories"></div>
+
+            <!-- Lista de archivos -->
+            <div id="logFilesList" class="log-files-list">
+                <p class="loading-message">Cargando archivos de log...</p>
+            </div>
+        </section>
+
+        <!-- Modal de Contenido del Log -->
+        <div class="logs-modal-overlay" id="logsModalOverlay" style="display: none;">
+            <div class="logs-modal">
+                <div class="logs-modal-header">
+                    <h2>📄 Contenido del Log: <span id="currentFileName"></span></h2>
+                    <button class="btn-close-modal" id="closeLogViewer" title="Cerrar">✕</button>
+                </div>
+
+                <div class="logs-modal-body">
+                    <!-- Filtros -->
+                    <div class="logs-filters">
+                        <div class="filter-group">
+                            <label for="levelFilter">Nivel:</label>
+                            <select id="levelFilter" class="filter-select">
+                                <option value="">Todos</option>
+                                <option value="Verbose">Verbose</option>
+                                <option value="Debug">Debug</option>
+                                <option value="Information">Information</option>
+                                <option value="Warning">Warning</option>
+                                <option value="Error">Error</option>
+                                <option value="Fatal">Fatal</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="searchFilter">Buscar:</label>
+                            <input type="text" id="searchFilter" class="filter-input" placeholder="Buscar en mensajes...">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="dateFromFilter">Fecha desde:</label>
+                            <input type="datetime-local" id="dateFromFilter" class="filter-input">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="dateToFilter">Fecha hasta:</label>
+                            <input type="datetime-local" id="dateToFilter" class="filter-input">
+                        </div>
+
+                        <button id="applyFilters" class="btn-apply-filters">
+                            <span class="btn-text">Aplicar Filtros</span>
+                            <span class="btn-loading" style="display: none;">⏳ Buscando...</span>
+                        </button>
+                        <button id="clearFilters" class="btn-clear-filters">Limpiar</button>
+                    </div>
+
+                    <!-- Información de paginación -->
+                    <div class="logs-info">
+                        <span>Mostrando <span id="entriesShown">0</span> de <span id="totalEntries">0</span> entradas</span>
+                    </div>
+
+                    <!-- Tabla de logs -->
+                    <div class="logs-table-container">
+                        <table class="logs-table" id="logsTable">
+                            <thead>
+                                <tr>
+                                    <th class="col-timestamp sortable" id="sortTimestamp">
+                                        Timestamp <span class="sort-icon">▼</span>
+                                    </th>
+                                    <th class="col-level">Nivel</th>
+                                    <th class="col-message">Mensaje</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody">
+                                <tr>
+                                    <td colspan="3" class="loading-cell">Cargando logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Paginación -->
+                <div class="logs-modal-footer">
+                    <div class="logs-pagination">
+                        <button id="prevPage" class="btn-page" disabled>← Anterior</button>
+                        <span class="page-info">Página <span id="currentPage">1</span></span>
+                        <button id="nextPage" class="btn-page">Siguiente →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>IIS Monitoring Dashboard</p>
+        </footer>
+    </div>
+
+    <script src="js/logs.js"></script>
+</body>
+</html>
