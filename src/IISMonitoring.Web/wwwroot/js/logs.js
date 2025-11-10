@@ -29,6 +29,23 @@ function initializeEventListeners() {
     // Botón de cerrar visor de logs
     document.getElementById('closeLogViewer').addEventListener('click', closeLogViewer);
 
+    // Cerrar modal al hacer clic en el overlay
+    document.getElementById('logsModalOverlay').addEventListener('click', (e) => {
+        if (e.target.id === 'logsModalOverlay') {
+            closeLogViewer();
+        }
+    });
+
+    // Cerrar modal con tecla Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('logsModalOverlay');
+            if (overlay.style.display === 'flex') {
+                closeLogViewer();
+            }
+        }
+    });
+
     // Filtros
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('clearFilters').addEventListener('click', clearFilters);
@@ -206,12 +223,12 @@ async function loadLogContent(fullPath, fileName) {
     currentFileId = btoa(fullPath);
     currentPage = 1;
 
-    // Mostrar sección de contenido
-    document.getElementById('logsContentSection').style.display = 'block';
+    // Mostrar modal
+    document.getElementById('logsModalOverlay').style.display = 'flex';
     document.getElementById('currentFileName').textContent = fileName;
 
-    // Scroll al visor
-    document.getElementById('logsContentSection').scrollIntoView({ behavior: 'smooth' });
+    // Prevenir scroll en el body
+    document.body.style.overflow = 'hidden';
 
     await fetchLogContent();
 }
@@ -356,11 +373,13 @@ function changePage(delta) {
  * Cierra el visor de logs
  */
 function closeLogViewer() {
-    document.getElementById('logsContentSection').style.display = 'none';
+    document.getElementById('logsModalOverlay').style.display = 'none';
     currentFileName = null;
     currentFileId = null;
     currentPage = 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Restaurar scroll en el body
+    document.body.style.overflow = '';
 }
 
 /**

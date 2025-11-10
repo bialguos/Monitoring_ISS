@@ -59,82 +59,88 @@
             </div>
         </section>
 
-        <!-- Sección de Contenido del Log -->
-        <section class="logs-content-section" id="logsContentSection" style="display: none;">
-            <div class="logs-content-header">
-                <h2>Contenido del Log: <span id="currentFileName"></span></h2>
-                <button class="btn-close" id="closeLogViewer">✕ Cerrar</button>
-            </div>
-
-            <!-- Filtros -->
-            <div class="logs-filters">
-                <div class="filter-group">
-                    <label for="levelFilter">Nivel:</label>
-                    <select id="levelFilter" class="filter-select">
-                        <option value="">Todos</option>
-                        <option value="Verbose">Verbose</option>
-                        <option value="Debug">Debug</option>
-                        <option value="Information">Information</option>
-                        <option value="Warning">Warning</option>
-                        <option value="Error">Error</option>
-                        <option value="Fatal">Fatal</option>
-                    </select>
+        <!-- Modal de Contenido del Log -->
+        <div class="logs-modal-overlay" id="logsModalOverlay" style="display: none;">
+            <div class="logs-modal">
+                <div class="logs-modal-header">
+                    <h2>📄 Contenido del Log: <span id="currentFileName"></span></h2>
+                    <button class="btn-close-modal" id="closeLogViewer" title="Cerrar">✕</button>
                 </div>
 
-                <div class="filter-group">
-                    <label for="searchFilter">Buscar:</label>
-                    <input type="text" id="searchFilter" class="filter-input" placeholder="Buscar en mensajes...">
+                <div class="logs-modal-body">
+                    <!-- Filtros -->
+                    <div class="logs-filters">
+                        <div class="filter-group">
+                            <label for="levelFilter">Nivel:</label>
+                            <select id="levelFilter" class="filter-select">
+                                <option value="">Todos</option>
+                                <option value="Verbose">Verbose</option>
+                                <option value="Debug">Debug</option>
+                                <option value="Information">Information</option>
+                                <option value="Warning">Warning</option>
+                                <option value="Error">Error</option>
+                                <option value="Fatal">Fatal</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="searchFilter">Buscar:</label>
+                            <input type="text" id="searchFilter" class="filter-input" placeholder="Buscar en mensajes...">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="dateFromFilter">Fecha desde:</label>
+                            <input type="datetime-local" id="dateFromFilter" class="filter-input">
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="dateToFilter">Fecha hasta:</label>
+                            <input type="datetime-local" id="dateToFilter" class="filter-input">
+                        </div>
+
+                        <button id="applyFilters" class="btn-apply-filters">
+                            <span class="btn-text">Aplicar Filtros</span>
+                            <span class="btn-loading" style="display: none;">⏳ Buscando...</span>
+                        </button>
+                        <button id="clearFilters" class="btn-clear-filters">Limpiar</button>
+                    </div>
+
+                    <!-- Información de paginación -->
+                    <div class="logs-info">
+                        <span>Mostrando <span id="entriesShown">0</span> de <span id="totalEntries">0</span> entradas</span>
+                    </div>
+
+                    <!-- Tabla de logs -->
+                    <div class="logs-table-container">
+                        <table class="logs-table" id="logsTable">
+                            <thead>
+                                <tr>
+                                    <th class="col-timestamp sortable" id="sortTimestamp">
+                                        Timestamp <span class="sort-icon">▼</span>
+                                    </th>
+                                    <th class="col-level">Nivel</th>
+                                    <th class="col-message">Mensaje</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody">
+                                <tr>
+                                    <td colspan="3" class="loading-cell">Cargando logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div class="filter-group">
-                    <label for="dateFromFilter">Fecha desde:</label>
-                    <input type="datetime-local" id="dateFromFilter" class="filter-input">
+                <!-- Paginación -->
+                <div class="logs-modal-footer">
+                    <div class="logs-pagination">
+                        <button id="prevPage" class="btn-page" disabled>← Anterior</button>
+                        <span class="page-info">Página <span id="currentPage">1</span></span>
+                        <button id="nextPage" class="btn-page">Siguiente →</button>
+                    </div>
                 </div>
-
-                <div class="filter-group">
-                    <label for="dateToFilter">Fecha hasta:</label>
-                    <input type="datetime-local" id="dateToFilter" class="filter-input">
-                </div>
-
-                <button id="applyFilters" class="btn-apply-filters">
-                    <span class="btn-text">Aplicar Filtros</span>
-                    <span class="btn-loading" style="display: none;">⏳ Buscando...</span>
-                </button>
-                <button id="clearFilters" class="btn-clear-filters">Limpiar</button>
             </div>
-
-            <!-- Información de paginación -->
-            <div class="logs-info">
-                <span>Mostrando <span id="entriesShown">0</span> de <span id="totalEntries">0</span> entradas</span>
-            </div>
-
-            <!-- Tabla de logs -->
-            <div class="logs-table-container">
-                <table class="logs-table" id="logsTable">
-                    <thead>
-                        <tr>
-                            <th class="col-timestamp sortable" id="sortTimestamp">
-                                Timestamp <span class="sort-icon">▼</span>
-                            </th>
-                            <th class="col-level">Nivel</th>
-                            <th class="col-message">Mensaje</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsTableBody">
-                        <tr>
-                            <td colspan="3" class="loading-cell">Cargando logs...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Paginación -->
-            <div class="logs-pagination">
-                <button id="prevPage" class="btn-page" disabled>← Anterior</button>
-                <span class="page-info">Página <span id="currentPage">1</span></span>
-                <button id="nextPage" class="btn-page">Siguiente →</button>
-            </div>
-        </section>
+        </div>
 
         <footer>
             <p>IIS Monitoring Dashboard - Visor de Logs v1.0.0</p>
