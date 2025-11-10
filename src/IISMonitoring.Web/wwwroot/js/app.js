@@ -115,65 +115,120 @@ async function loadHistoricalData() {
     }
 }
 
-// Inicializar selector de pools
+// Inicializar selector de pools (Searchable Multi-Select)
 function initializePoolSelector() {
-    const selectorDiv = document.getElementById('poolSelector');
+    const tagsContainer = document.getElementById('selectedPoolsTags');
+    const searchInput = document.getElementById('poolSearchInput');
+    const dropdown = document.getElementById('poolDropdown');
 
     if (availablePools.length === 0) {
-        selectorDiv.innerHTML = '<span class="loading-text">No hay pools disponibles</span>';
+        tagsContainer.innerHTML = '<span class="loading-text">No hay pools disponibles</span>';
         return;
     }
 
     // Seleccionar todos los pools por defecto
     selectedPools = new Set(availablePools);
 
-    // Crear checkboxes para cada pool
-    selectorDiv.innerHTML = availablePools.map((pool, index) => `
-        <div class="pool-checkbox-wrapper selected" data-pool="${pool}">
-            <input type="checkbox" id="pool-${index}" value="${pool}" checked onchange="togglePool('${pool}')">
-            <label for="pool-${index}">${pool}</label>
-        </div>
-    `).join('');
+    // Renderizar tags iniciales
+    renderSelectedTags();
+
+    // Event listener para el input de búsqueda
+    searchInput.addEventListener('focus', () => {
+        renderDropdownOptions('');
+        dropdown.style.display = 'block';
+    });
+
+    searchInput.addEventListener('input', (e) => {
+        renderDropdownOptions(e.target.value);
+    });
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.multiselect-search-wrapper')) {
+            dropdown.style.display = 'none';
+            searchInput.value = '';
+        }
+    });
+}
+
+// Renderizar los chips/tags de pools seleccionados
+function renderSelectedTags() {
+    const tagsContainer = document.getElementById('selectedPoolsTags');
+
+    if (selectedPools.size === 0) {
+        tagsContainer.innerHTML = '<span class="loading-text">No hay pools seleccionados</span>';
+        return;
+    }
+
+    tagsContainer.innerHTML = Array.from(selectedPools)
+        .sort()
+        .map(pool => `
+            <div class="multiselect-tag">
+                <span>${pool}</span>
+                <button class="multiselect-tag-remove" onclick="removePoolTag('${pool}')" title="Eliminar">×</button>
+            </div>
+        `).join('');
+}
+
+// Renderizar opciones del dropdown con búsqueda
+function renderDropdownOptions(searchTerm) {
+    const optionsContainer = document.getElementById('poolOptions');
+    const filteredPools = availablePools.filter(pool =>
+        pool.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (filteredPools.length === 0) {
+        optionsContainer.innerHTML = '<div class="multiselect-no-results">No se encontraron pools</div>';
+        return;
+    }
+
+    optionsContainer.innerHTML = filteredPools
+        .sort()
+        .map(pool => {
+            const isSelected = selectedPools.has(pool);
+            return `
+                <div class="multiselect-option ${isSelected ? 'selected' : ''}" onclick="togglePool('${pool}')">
+                    <input type="checkbox" class="multiselect-option-checkbox" ${isSelected ? 'checked' : ''} onchange="togglePool('${pool}')">
+                    <span>${pool}</span>
+                </div>
+            `;
+        }).join('');
 }
 
 // Toggle selección de pool
 window.togglePool = function(poolName) {
-    const wrapper = document.querySelector(`[data-pool="${poolName}"]`);
-
     if (selectedPools.has(poolName)) {
         selectedPools.delete(poolName);
-        wrapper.classList.remove('selected');
     } else {
         selectedPools.add(poolName);
-        wrapper.classList.add('selected');
     }
 
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
+    updateHistoricalCharts();
+};
+
+// Remover un pool específico desde el tag
+window.removePoolTag = function(poolName) {
+    selectedPools.delete(poolName);
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
     updateHistoricalCharts();
 };
 
 // Seleccionar todos los pools
 window.selectAllPools = function() {
     selectedPools = new Set(availablePools);
-
-    document.querySelectorAll('.pool-checkbox-wrapper').forEach(wrapper => {
-        wrapper.classList.add('selected');
-        const checkbox = wrapper.querySelector('input[type="checkbox"]');
-        checkbox.checked = true;
-    });
-
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
     updateHistoricalCharts();
 };
 
 // Deseleccionar todos los pools
 window.deselectAllPools = function() {
     selectedPools.clear();
-
-    document.querySelectorAll('.pool-checkbox-wrapper').forEach(wrapper => {
-        wrapper.classList.remove('selected');
-        const checkbox = wrapper.querySelector('input[type="checkbox"]');
-        checkbox.checked = false;
-    });
-
+    renderSelectedTags();
+    renderDropdownOptions(document.getElementById('poolSearchInput').value);
     updateHistoricalCharts();
 };
 

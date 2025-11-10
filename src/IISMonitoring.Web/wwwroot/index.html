@@ -61,17 +61,38 @@
 
         <!-- Gráficos -->
         <section class="charts-section">
-            <!-- Selector de Pools -->
+            <!-- Selector de Pools con Búsqueda -->
             <div class="pool-selector-container">
                 <div class="pool-selector-header">
                     <h3>📈 Gráficas de Evolución (Últimos 10 minutos)</h3>
                     <div class="pool-selector-controls">
-                        <button class="btn-select-all" onclick="selectAllPools()">Seleccionar Todos</button>
-                        <button class="btn-deselect-all" onclick="deselectAllPools()">Deseleccionar Todos</button>
+                        <button class="btn-select-all" onclick="selectAllPools()">Todos</button>
+                        <button class="btn-deselect-all" onclick="deselectAllPools()">Ninguno</button>
                     </div>
                 </div>
-                <div id="poolSelector" class="pool-selector">
-                    <span class="loading-text">Cargando pools...</span>
+
+                <!-- Multi-Select Searchable -->
+                <div class="multiselect-wrapper">
+                    <!-- Chips de seleccionados -->
+                    <div class="multiselect-tags" id="selectedPoolsTags">
+                        <span class="loading-text">Cargando pools...</span>
+                    </div>
+
+                    <!-- Input de búsqueda y dropdown -->
+                    <div class="multiselect-search-wrapper">
+                        <input
+                            type="text"
+                            id="poolSearchInput"
+                            class="multiselect-search-input"
+                            placeholder="🔍 Buscar pools..."
+                            autocomplete="off"
+                        />
+                        <div class="multiselect-dropdown" id="poolDropdown" style="display: none;">
+                            <div class="multiselect-options" id="poolOptions">
+                                <!-- Las opciones se cargarán dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
