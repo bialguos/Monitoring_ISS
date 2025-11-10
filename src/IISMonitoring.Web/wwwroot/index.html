@@ -12,8 +12,17 @@
 <body>
     <div class="container">
         <header>
-            <h1>🖥️ IIS Monitoring Dashboard</h1>
-            <div class="last-update">Última actualización: <span id="lastUpdate">--</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div>
+                    <h1>🖥️ IIS Monitoring Dashboard</h1>
+                    <div class="last-update">Última actualización: <span id="lastUpdate">--</span></div>
+                </div>
+                <div>
+                    <a href="logs.html" class="btn-logs" style="padding: 0.5rem 1rem; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        📋 Ver Logs
+                    </a>
+                </div>
+            </div>
         </header>
 
         <!-- Métricas Generales -->

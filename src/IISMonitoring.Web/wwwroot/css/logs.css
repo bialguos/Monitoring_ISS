@@ -1,0 +1,572 @@
+/* Estilos específicos para la página de logs */
+
+/* Header */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.btn-back {
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color, #2563eb);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-back:hover {
+    background-color: #1d4ed8;
+}
+
+/* Sección de archivos de log */
+.logs-files-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.logs-files-section h2 {
+    margin-bottom: 1rem;
+    color: #1f2937;
+}
+
+/* Estadísticas */
+.logs-stats {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color, #2563eb);
+}
+
+/* Directorios de logs */
+.log-directories {
+    margin-bottom: 1.5rem;
+}
+
+.directories-list h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.directories-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.directories-list li {
+    padding: 0.5rem;
+    background: #f3f4f6;
+    margin-bottom: 0.25rem;
+    border-radius: 4px;
+}
+
+.directories-list code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    color: #1f2937;
+}
+
+/* Lista de archivos de log */
+.log-files-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
+}
+
+.log-file-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.log-file-card:hover {
+    border-color: var(--primary-color, #2563eb);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.log-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.log-file-header h3 {
+    font-size: 1rem;
+    margin: 0;
+    color: #1f2937;
+}
+
+.log-file-size {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color, #2563eb);
+}
+
+.log-file-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+}
+
+.detail-label {
+    color: #6b7280;
+}
+
+.detail-value {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.btn-view-log {
+    width: 100%;
+    padding: 0.5rem;
+    background-color: var(--primary-color, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-view-log:hover {
+    background-color: #1d4ed8;
+}
+
+/* Mensajes */
+.loading-message,
+.error-message,
+.info-message {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1rem;
+}
+
+.error-message {
+    color: var(--danger-color, #ef4444);
+}
+
+.info-message {
+    color: #6b7280;
+}
+
+.no-logs-message {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.no-logs-message p {
+    margin-bottom: 1rem;
+}
+
+.btn-generate-test {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--success-color, #10b981);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-generate-test:hover {
+    background-color: #059669;
+}
+
+/* Sección de contenido del log */
+.logs-content-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.logs-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.logs-content-header h2 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    padding: 0.5rem 1rem;
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-close:hover {
+    background-color: #4b5563;
+}
+
+/* Filtros */
+.logs-filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 6px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-group label {
+    font-size: 0.875rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.filter-select,
+.filter-input {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #2563eb);
+}
+
+.btn-apply-filters,
+.btn-clear-filters {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-apply-filters {
+    background-color: var(--primary-color, #2563eb);
+    color: white;
+}
+
+.btn-apply-filters:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-clear-filters {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.btn-clear-filters:hover {
+    background-color: #d1d5db;
+}
+
+/* Información de logs */
+.logs-info {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* Tabla de logs */
+.logs-table-container {
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.logs-table thead {
+    background-color: #f9fafb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.logs-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.logs-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.logs-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.col-timestamp {
+    width: 200px;
+    white-space: nowrap;
+}
+
+.col-level {
+    width: 120px;
+}
+
+.col-message {
+    width: auto;
+}
+
+/* Badges de nivel */
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.badge-verbose {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.badge-debug {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-info {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-fatal {
+    background-color: #7f1d1d;
+    color: white;
+}
+
+/* Filas de log según nivel */
+.log-entry.error {
+    background-color: #fef2f2;
+}
+
+.log-entry.fatal {
+    background-color: #fee2e2;
+}
+
+.log-entry.warning {
+    background-color: #fffbeb;
+}
+
+/* Contenido del mensaje */
+.message-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #1f2937;
+}
+
+/* Detalles de excepción */
+.exception-details {
+    margin-top: 0.5rem;
+}
+
+.exception-details summary {
+    cursor: pointer;
+    color: var(--danger-color, #ef4444);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.exception-details summary:hover {
+    text-decoration: underline;
+}
+
+.exception-content {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: #fef2f2;
+    border-left: 3px solid var(--danger-color, #ef4444);
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    color: #991b1b;
+}
+
+/* Celdas especiales */
+.loading-cell,
+.error-cell,
+.empty-cell {
+    text-align: center;
+    padding: 2rem !important;
+    color: #6b7280;
+}
+
+.error-cell {
+    color: var(--danger-color, #ef4444);
+}
+
+/* Paginación */
+.logs-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.btn-page {
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.btn-page:hover:not(:disabled) {
+    background-color: #1d4ed8;
+}
+
+.btn-page:disabled {
+    background-color: #d1d5db;
+    cursor: not-allowed;
+    color: #9ca3af;
+}
+
+.page-info {
+    font-size: 0.875rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .logs-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .log-files-list {
+        grid-template-columns: 1fr;
+    }
+
+    .logs-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        min-width: 100%;
+    }
+
+    .logs-content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .logs-table-container {
+        max-height: 400px;
+    }
+
+    .col-timestamp {
+        width: auto;
+        white-space: normal;
+    }
+}
