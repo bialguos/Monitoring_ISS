@@ -70,53 +70,63 @@
             </div>
         </section>
 
-        <!-- Application Pools -->
+        <!-- Pestañas para Application Pools y Sitios Web -->
         <section class="table-section">
-            <h2>📦 Application Pools</h2>
-            <div class="table-responsive">
-                <table id="appPoolsTable">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Estado</th>
-                            <th>Habilitado</th>
-                            <th>CPU %</th>
-                            <th>Memoria (MB)</th>
-                            <th>Requests Activos</th>
-                            <th>Total Requests</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="7" class="loading">Cargando datos...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('appPools')">📦 Application Pools</button>
+                    <button class="tab-button" onclick="switchTab('webSites')">🌐 Sitios Web</button>
+                </div>
 
-        <!-- Sitios Web -->
-        <section class="table-section">
-            <h2>🌐 Sitios Web</h2>
-            <div class="table-responsive">
-                <table id="webSitesTable">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Estado</th>
-                            <th>ID</th>
-                            <th>Application Pool</th>
-                            <th>Bindings</th>
-                            <th>Req/sec</th>
-                            <th>Conexiones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="7" class="loading">Cargando datos...</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Application Pools Tab -->
+                <div id="appPoolsTab" class="tab-content active">
+                    <div class="table-responsive">
+                        <table id="appPoolsTable">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Estado</th>
+                                    <th>Habilitado</th>
+                                    <th>CPU %</th>
+                                    <th>Memoria (MB)</th>
+                                    <th>Requests Activos</th>
+                                    <th>Total Requests</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="loading">Cargando datos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sitios Web Tab -->
+                <div id="webSitesTab" class="tab-content">
+                    <div class="table-responsive">
+                        <table id="webSitesTable">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Estado</th>
+                                    <th>ID</th>
+                                    <th>Application Pool</th>
+                                    <th>Bindings</th>
+                                    <th>Req/sec</th>
+                                    <th>Conexiones</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="loading">Cargando datos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
 

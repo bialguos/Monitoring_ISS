@@ -198,4 +198,136 @@ public class IISMonitoringService : IIISMonitoringService
             return metrics;
         });
     }
+
+    public async Task<bool> StartApplicationPoolAsync(string poolName)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var serverManager = new ServerManager();
+                var appPool = serverManager.ApplicationPools.FirstOrDefault(ap => ap.Name == poolName);
+
+                if (appPool == null)
+                {
+                    _logger.LogWarning($"Application Pool '{poolName}' no encontrado");
+                    return false;
+                }
+
+                if (appPool.State == ObjectState.Stopped || appPool.State == ObjectState.Stopping)
+                {
+                    appPool.Start();
+                    _logger.LogInformation($"Application Pool '{poolName}' iniciado correctamente");
+                    return true;
+                }
+
+                _logger.LogInformation($"Application Pool '{poolName}' ya está en estado {appPool.State}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al iniciar Application Pool '{poolName}'");
+                return false;
+            }
+        });
+    }
+
+    public async Task<bool> StopApplicationPoolAsync(string poolName)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var serverManager = new ServerManager();
+                var appPool = serverManager.ApplicationPools.FirstOrDefault(ap => ap.Name == poolName);
+
+                if (appPool == null)
+                {
+                    _logger.LogWarning($"Application Pool '{poolName}' no encontrado");
+                    return false;
+                }
+
+                if (appPool.State == ObjectState.Started || appPool.State == ObjectState.Starting)
+                {
+                    appPool.Stop();
+                    _logger.LogInformation($"Application Pool '{poolName}' detenido correctamente");
+                    return true;
+                }
+
+                _logger.LogInformation($"Application Pool '{poolName}' ya está en estado {appPool.State}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al detener Application Pool '{poolName}'");
+                return false;
+            }
+        });
+    }
+
+    public async Task<bool> StartWebSiteAsync(string siteName)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var serverManager = new ServerManager();
+                var site = serverManager.Sites.FirstOrDefault(s => s.Name == siteName);
+
+                if (site == null)
+                {
+                    _logger.LogWarning($"Sitio Web '{siteName}' no encontrado");
+                    return false;
+                }
+
+                if (site.State == ObjectState.Stopped || site.State == ObjectState.Stopping)
+                {
+                    site.Start();
+                    _logger.LogInformation($"Sitio Web '{siteName}' iniciado correctamente");
+                    return true;
+                }
+
+                _logger.LogInformation($"Sitio Web '{siteName}' ya está en estado {site.State}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al iniciar Sitio Web '{siteName}'");
+                return false;
+            }
+        });
+    }
+
+    public async Task<bool> StopWebSiteAsync(string siteName)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var serverManager = new ServerManager();
+                var site = serverManager.Sites.FirstOrDefault(s => s.Name == siteName);
+
+                if (site == null)
+                {
+                    _logger.LogWarning($"Sitio Web '{siteName}' no encontrado");
+                    return false;
+                }
+
+                if (site.State == ObjectState.Started || site.State == ObjectState.Starting)
+                {
+                    site.Stop();
+                    _logger.LogInformation($"Sitio Web '{siteName}' detenido correctamente");
+                    return true;
+                }
+
+                _logger.LogInformation($"Sitio Web '{siteName}' ya está en estado {site.State}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error al detener Sitio Web '{siteName}'");
+                return false;
+            }
+        });
+    }
 }
