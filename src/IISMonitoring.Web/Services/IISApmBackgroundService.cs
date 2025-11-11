@@ -135,6 +135,12 @@ public class IISApmBackgroundService : BackgroundService
             {
                 trace.StartTime = entry.DateTime;
                 trace.DurationMs = entry.TimeTaken;
+
+                // Copiar tags importantes del span al trace para facilitar el filtrado
+                trace.Tags["iis.site.id"] = entry.SiteId;
+                trace.Tags["iis.site.name"] = entry.SiteName;
+                trace.Tags["http.method"] = entry.Method;
+                trace.Tags["http.status_code"] = entry.StatusCode.ToString();
             }
         }
         catch (Exception ex)

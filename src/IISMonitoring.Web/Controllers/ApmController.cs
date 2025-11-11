@@ -282,13 +282,25 @@ public class ApmController : ControllerBase
         // Filtrar traces que tengan el tag iis.site.id en la lista de sitios monitorizados
         return traces.Where(trace =>
         {
-            // Solo incluir traces que tengan el tag iis.site.id Y que estén en la lista de monitorizados
+            // Primero buscar en los tags del trace
             if (trace.Tags != null && trace.Tags.TryGetValue("iis.site.id", out var siteId))
             {
                 return monitoredSiteIds.Contains(siteId);
             }
 
-            // Si no tiene el tag iis.site.id, no es un trace de IIS, por lo tanto lo excluimos
+            // Si no está en el trace, buscar en los tags de los spans
+            if (trace.Spans != null && trace.Spans.Any())
+            {
+                foreach (var span in trace.Spans)
+                {
+                    if (span.Tags != null && span.Tags.TryGetValue("iis.site.id", out var spanSiteId))
+                    {
+                        return monitoredSiteIds.Contains(spanSiteId);
+                    }
+                }
+            }
+
+            // Si no tiene el tag iis.site.id ni en el trace ni en los spans, no es de IIS
             return false;
         }).ToList();
     }
