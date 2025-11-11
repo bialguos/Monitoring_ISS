@@ -74,10 +74,45 @@
 
         <!-- Sitios IIS Monitorizados -->
         <section class="iis-sites-section">
-            <h2>🖥️ Sitios IIS Monitorizados</h2>
-            <p class="section-description">Selecciona los sitios web de IIS que deseas monitorizar. Los traces se generan automáticamente desde los logs de IIS.</p>
-            <div class="sites-container" id="sitesContainer">
-                <div class="loading-message">Cargando sitios IIS...</div>
+            <div class="sites-selector-header">
+                <div>
+                    <h2>🖥️ Sitios IIS Monitorizados</h2>
+                    <p class="section-description">Selecciona los sitios web de IIS que deseas monitorizar. Los traces se generan automáticamente desde los logs de IIS.</p>
+                </div>
+                <div class="sites-selector-controls">
+                    <button class="btn-select-all" onclick="selectAllSites()">Todos</button>
+                    <button class="btn-deselect-all" onclick="deselectAllSites()">Ninguno</button>
+                    <button class="btn-action btn-save-sites" id="saveSitesButton">💾 Guardar</button>
+                </div>
+            </div>
+
+            <!-- Multi-Select Searchable -->
+            <div class="multiselect-wrapper">
+                <!-- Chips de seleccionados -->
+                <div class="multiselect-tags" id="selectedSitesTags">
+                    <span class="loading-text">Cargando sitios...</span>
+                </div>
+
+                <!-- Input de búsqueda y dropdown -->
+                <div class="multiselect-search-wrapper">
+                    <input
+                        type="text"
+                        id="siteSearchInput"
+                        class="multiselect-search-input"
+                        placeholder="🔍 Buscar sitios IIS..."
+                        autocomplete="off"
+                    />
+                    <div class="multiselect-dropdown" id="siteDropdown" style="display: none;">
+                        <div class="multiselect-options" id="siteOptions">
+                            <!-- Las opciones se cargarán dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sites-info">
+                <p><strong>Instrucciones:</strong> Selecciona los sitios que deseas monitorizar usando el selector múltiple y haz clic en "Guardar".</p>
+                <p>Los cambios se aplicarán inmediatamente y se guardarán de forma persistente.</p>
             </div>
         </section>
 

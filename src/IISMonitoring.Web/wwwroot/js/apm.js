@@ -2,6 +2,8 @@
 // Estado global
 let currentTraces = [];
 let currentStatistics = null;
+let allSites = [];
+let selectedSites = [];
 
 // Elementos del DOM
 const elements = {
@@ -18,7 +20,11 @@ const elements = {
     slowestOperationsBody: document.getElementById('slowestOperationsBody'),
 
     // Sitios IIS
-    sitesContainer: document.getElementById('sitesContainer'),
+    selectedSitesTags: document.getElementById('selectedSitesTags'),
+    siteSearchInput: document.getElementById('siteSearchInput'),
+    siteDropdown: document.getElementById('siteDropdown'),
+    siteOptions: document.getElementById('siteOptions'),
+    saveSitesButton: document.getElementById('saveSitesButton'),
 
     // Filtros
     statusFilter: document.getElementById('statusFilter'),
@@ -428,84 +434,124 @@ async function loadIISSites() {
         if (!response.ok) throw new Error('Error al cargar sitios IIS');
 
         const sites = await response.json();
-        renderIISSites(sites);
+        allSites = sites;
+
+        // Inicializar sitios seleccionados
+        selectedSites = sites.filter(s => s.isMonitored).map(s => ({
+            id: s.id,
+            name: s.name
+        }));
+
+        renderSitesMultiselect();
+        setupSiteSearchListeners();
     } catch (error) {
         console.error('Error cargando sitios IIS:', error);
-        elements.sitesContainer.innerHTML = '<div class="error-message">Error al cargar sitios IIS</div>';
+        elements.selectedSitesTags.innerHTML = '<span class="error-text">Error al cargar sitios IIS</span>';
     }
 }
 
-function renderIISSites(sites) {
-    if (!sites || sites.length === 0) {
-        elements.sitesContainer.innerHTML = '<div class="no-data">No se encontraron sitios IIS</div>';
+function renderSitesMultiselect() {
+    // Renderizar tags de seleccionados
+    if (selectedSites.length === 0) {
+        elements.selectedSitesTags.innerHTML = '<span class="placeholder-text">No hay sitios seleccionados. Usa "Todos" o busca sitios...</span>';
+    } else {
+        elements.selectedSitesTags.innerHTML = selectedSites.map(site => `
+            <span class="tag">
+                ${escapeHtml(site.name)} (${escapeHtml(site.id)})
+                <span class="tag-remove" onclick="removeSite('${site.id}')">×</span>
+            </span>
+        `).join('');
+    }
+
+    // Renderizar opciones del dropdown
+    renderSiteOptions('');
+}
+
+function renderSiteOptions(searchTerm) {
+    const term = searchTerm.toLowerCase();
+    const filteredSites = allSites.filter(site =>
+        site.name.toLowerCase().includes(term) ||
+        site.id.toLowerCase().includes(term)
+    );
+
+    if (filteredSites.length === 0) {
+        elements.siteOptions.innerHTML = '<div class="no-options">No se encontraron sitios</div>';
         return;
     }
 
-    elements.sitesContainer.innerHTML = `
-        <div class="sites-grid">
-            ${sites.map(site => `
-                <label class="site-card ${site.isMonitored ? 'monitored' : ''}">
-                    <input type="checkbox"
-                           class="site-checkbox"
-                           data-site-id="${escapeHtml(site.id)}"
-                           ${site.isMonitored ? 'checked' : ''}>
-                    <div class="site-content">
-                        <div class="site-header">
-                            <div class="site-name">${escapeHtml(site.name)}</div>
-                            <div class="site-id">ID: ${escapeHtml(site.id)}</div>
-                        </div>
-                        <div class="site-status">
-                            <span class="status-badge ${site.isMonitored ? 'status-success' : 'status-inactive'}">
-                                ${site.isMonitored ? '✅ Monitorizando' : '⏸️ Inactivo'}
-                            </span>
-                        </div>
-                    </div>
-                </label>
-            `).join('')}
-        </div>
-        <div class="sites-actions">
-            <button class="btn-action btn-save-sites" id="saveSitesButton">💾 Guardar Configuración</button>
-        </div>
-        <div class="sites-info">
-            <p><strong>Instrucciones:</strong> Marca las casillas de los sitios que deseas monitorizar y haz clic en "Guardar Configuración".</p>
-            <p>Los cambios se aplicarán inmediatamente y se guardarán de forma persistente.</p>
-        </div>
-    `;
+    elements.siteOptions.innerHTML = filteredSites.map(site => {
+        const isSelected = selectedSites.some(s => s.id === site.id);
+        return `
+            <div class="multiselect-option ${isSelected ? 'selected' : ''}"
+                 onclick="toggleSite('${site.id}', '${escapeHtml(site.name).replace(/'/g, "\\'")}')">
+                <span class="option-checkbox">${isSelected ? '✓' : ''}</span>
+                <span class="option-text">${escapeHtml(site.name)} (ID: ${escapeHtml(site.id)})</span>
+            </div>
+        `;
+    }).join('');
+}
 
-    // Añadir event listeners
-    document.getElementById('saveSitesButton').addEventListener('click', saveSitesConfiguration);
-
-    // Event listener para cambiar el estilo al marcar/desmarcar
-    document.querySelectorAll('.site-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const card = this.closest('.site-card');
-            const statusBadge = card.querySelector('.status-badge');
-
-            if (this.checked) {
-                card.classList.add('monitored');
-                statusBadge.classList.remove('status-inactive');
-                statusBadge.classList.add('status-success');
-                statusBadge.textContent = '✅ Monitorizando';
-            } else {
-                card.classList.remove('monitored');
-                statusBadge.classList.remove('status-success');
-                statusBadge.classList.add('status-inactive');
-                statusBadge.textContent = '⏸️ Inactivo';
-            }
-        });
+function setupSiteSearchListeners() {
+    // Input focus - mostrar dropdown
+    elements.siteSearchInput.addEventListener('focus', () => {
+        elements.siteDropdown.style.display = 'block';
     });
+
+    // Input - búsqueda
+    elements.siteSearchInput.addEventListener('input', (e) => {
+        renderSiteOptions(e.target.value);
+    });
+
+    // Clic fuera - ocultar dropdown
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.multiselect-search-wrapper')) {
+            elements.siteDropdown.style.display = 'none';
+        }
+    });
+
+    // Botón guardar
+    elements.saveSitesButton.addEventListener('click', saveSitesConfiguration);
+}
+
+function toggleSite(siteId, siteName) {
+    const index = selectedSites.findIndex(s => s.id === siteId);
+
+    if (index === -1) {
+        // Añadir
+        selectedSites.push({ id: siteId, name: siteName });
+    } else {
+        // Remover
+        selectedSites.splice(index, 1);
+    }
+
+    renderSitesMultiselect();
+    elements.siteSearchInput.value = '';
+}
+
+function removeSite(siteId) {
+    selectedSites = selectedSites.filter(s => s.id !== siteId);
+    renderSitesMultiselect();
+}
+
+function selectAllSites() {
+    selectedSites = allSites.map(site => ({
+        id: site.id,
+        name: site.name
+    }));
+    renderSitesMultiselect();
+}
+
+function deselectAllSites() {
+    selectedSites = [];
+    renderSitesMultiselect();
 }
 
 async function saveSitesConfiguration() {
     try {
-        const checkboxes = document.querySelectorAll('.site-checkbox');
-        const selectedSiteIds = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.dataset.siteId);
+        const selectedSiteIds = selectedSites.map(s => s.id);
 
-        const saveButton = document.getElementById('saveSitesButton');
-        saveButton.disabled = true;
-        saveButton.textContent = '💾 Guardando...';
+        elements.saveSitesButton.disabled = true;
+        elements.saveSitesButton.textContent = '💾 Guardando...';
 
         const response = await fetch('/api/apm/sites/monitor', {
             method: 'POST',
@@ -520,13 +566,13 @@ async function saveSitesConfiguration() {
         const result = await response.json();
 
         // Mostrar mensaje de éxito
-        saveButton.textContent = '✅ Guardado';
-        saveButton.style.backgroundColor = '#10b981';
+        elements.saveSitesButton.textContent = '✅ Guardado';
+        elements.saveSitesButton.style.backgroundColor = '#10b981';
 
         setTimeout(() => {
-            saveButton.disabled = false;
-            saveButton.textContent = '💾 Guardar Configuración';
-            saveButton.style.backgroundColor = '';
+            elements.saveSitesButton.disabled = false;
+            elements.saveSitesButton.textContent = '💾 Guardar';
+            elements.saveSitesButton.style.backgroundColor = '';
         }, 2000);
 
         console.log('Configuración guardada:', result);
@@ -534,8 +580,7 @@ async function saveSitesConfiguration() {
         console.error('Error guardando configuración:', error);
         alert('Error al guardar la configuración de sitios');
 
-        const saveButton = document.getElementById('saveSitesButton');
-        saveButton.disabled = false;
-        saveButton.textContent = '💾 Guardar Configuración';
+        elements.saveSitesButton.disabled = false;
+        elements.saveSitesButton.textContent = '💾 Guardar';
     }
 }
