@@ -28,17 +28,8 @@ public class ApmService : IApmService, IDisposable
         try
         {
             // Subscribirse a eventos de ASP.NET Core
-            var aspNetCoreSubscription = DiagnosticListener.AllListeners.Subscribe(delegate (DiagnosticListener listener)
-            {
-                if (listener.Name == "Microsoft.AspNetCore")
-                {
-                    listener.Subscribe(new AspNetCoreDiagnosticObserver(this, _logger));
-                }
-                else if (listener.Name == "HttpHandlerDiagnosticListener")
-                {
-                    listener.Subscribe(new HttpClientDiagnosticObserver(this, _logger));
-                }
-            });
+            var listenerObserver = new DiagnosticListenerObserver(this, _logger);
+            var aspNetCoreSubscription = DiagnosticListener.AllListeners.Subscribe(listenerObserver);
 
             _subscriptions.Add(aspNetCoreSubscription);
             _logger.LogInformation("APM Service inicializado correctamente");
@@ -379,5 +370,49 @@ internal class HttpClientDiagnosticObserver : IObserver<KeyValuePair<string, obj
     public void OnError(Exception error)
     {
         _logger.LogError(error, "Error en HttpClientDiagnosticObserver");
+    }
+}
+
+/// <summary>
+/// Observer para DiagnosticListener.AllListeners
+/// </summary>
+internal class DiagnosticListenerObserver : IObserver<DiagnosticListener>
+{
+    private readonly ApmService _apmService;
+    private readonly ILogger _logger;
+    private readonly List<IDisposable> _subscriptions = new();
+
+    public DiagnosticListenerObserver(ApmService apmService, ILogger logger)
+    {
+        _apmService = apmService;
+        _logger = logger;
+    }
+
+    public void OnNext(DiagnosticListener listener)
+    {
+        try
+        {
+            if (listener.Name == "Microsoft.AspNetCore")
+            {
+                var subscription = listener.Subscribe(new AspNetCoreDiagnosticObserver(_apmService, _logger));
+                _subscriptions.Add(subscription);
+            }
+            else if (listener.Name == "HttpHandlerDiagnosticListener")
+            {
+                var subscription = listener.Subscribe(new HttpClientDiagnosticObserver(_apmService, _logger));
+                _subscriptions.Add(subscription);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al subscribirse al listener: {ListenerName}", listener.Name);
+        }
+    }
+
+    public void OnCompleted() { }
+
+    public void OnError(Exception error)
+    {
+        _logger.LogError(error, "Error en DiagnosticListenerObserver");
     }
 }
