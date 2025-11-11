@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APM - Application Performance Monitoring</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/apm.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>📊 Application Performance Monitoring</h1>
+                    <p class="subtitle">Monitorización de traces, spans y rendimiento de aplicaciones</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-action btn-refresh" id="refreshButton">🔄 Actualizar</button>
+                    <button class="btn-action btn-clear" id="clearTracesButton">🗑️ Limpiar Traces</button>
+                    <a href="index.html" class="btn-back">← Volver al Dashboard</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Estadísticas Generales -->
+        <section class="apm-statistics">
+            <h2>📈 Estadísticas Generales</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Total Traces</div>
+                        <div class="stat-value" id="totalTraces">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">❌</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Traces con Error</div>
+                        <div class="stat-value" id="errorTraces">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Duración Promedio</div>
+                        <div class="stat-value" id="avgDuration">0 ms</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🐌</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Duración Máxima</div>
+                        <div class="stat-value" id="maxDuration">0 ms</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Duración Mínima</div>
+                        <div class="stat-value" id="minDuration">0 ms</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📉</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Tasa de Error</div>
+                        <div class="stat-value" id="errorRate">0%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Operaciones Más Lentas -->
+        <section class="slowest-operations" id="slowestOperationsSection" style="display: none;">
+            <h2>🐢 Operaciones Más Lentas</h2>
+            <div class="operations-table-container">
+                <table class="operations-table">
+                    <thead>
+                        <tr>
+                            <th>Operación</th>
+                            <th>Duración Promedio</th>
+                            <th>Ejecuciones</th>
+                            <th>Errores</th>
+                            <th>Tasa de Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slowestOperationsBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Filtros de Traces -->
+        <section class="traces-filters">
+            <h2>🔍 Filtros</h2>
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label for="statusFilter">Estado:</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="">Todos</option>
+                        <option value="Success">Success</option>
+                        <option value="Error">Error</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="limitFilter">Límite:</label>
+                    <select id="limitFilter" class="filter-select">
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                    </select>
+                </div>
+                <button class="btn-action btn-apply-filters" id="applyFiltersButton">Aplicar Filtros</button>
+            </div>
+        </section>
+
+        <!-- Lista de Traces -->
+        <section class="traces-list">
+            <h2>📋 Traces Recientes</h2>
+            <div class="traces-table-container">
+                <div id="tracesLoading" class="loading-message">Cargando traces...</div>
+                <div id="tracesError" class="error-message" style="display: none;"></div>
+                <table class="traces-table" id="tracesTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th>Operación</th>
+                            <th>Servicio</th>
+                            <th>Inicio</th>
+                            <th>Duración</th>
+                            <th>Spans</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracesTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Modal de Detalles del Trace -->
+        <div class="modal-overlay" id="traceModalOverlay" style="display: none;">
+            <div class="modal-container trace-modal">
+                <div class="modal-header">
+                    <h2>🔍 Detalles del Trace</h2>
+                    <button class="btn-close-modal" id="closeTraceModal" title="Cerrar">✕</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Información del Trace -->
+                    <div class="trace-info">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Trace ID:</span>
+                                <span class="info-value" id="traceId"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Operación:</span>
+                                <span class="info-value" id="traceOperation"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Servicio:</span>
+                                <span class="info-value" id="traceService"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Estado:</span>
+                                <span class="info-value status-badge" id="traceStatus"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Inicio:</span>
+                                <span class="info-value" id="traceStartTime"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Duración:</span>
+                                <span class="info-value" id="traceDuration"></span>
+                            </div>
+                        </div>
+                        <div class="error-message-container" id="traceErrorContainer" style="display: none;">
+                            <strong>Error:</strong>
+                            <span id="traceErrorMessage"></span>
+                        </div>
+                    </div>
+
+                    <!-- Tags del Trace -->
+                    <div class="trace-tags" id="traceTagsContainer" style="display: none;">
+                        <h3>🏷️ Tags</h3>
+                        <div class="tags-list" id="traceTagsList"></div>
+                    </div>
+
+                    <!-- Timeline de Spans -->
+                    <div class="spans-section">
+                        <h3>📊 Timeline de Spans</h3>
+                        <div class="spans-timeline" id="spansTimeline"></div>
+                    </div>
+
+                    <!-- Lista Detallada de Spans -->
+                    <div class="spans-list">
+                        <h3>📝 Detalles de Spans</h3>
+                        <div id="spansDetailList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/apm.js"></script>
+</body>
+</html>

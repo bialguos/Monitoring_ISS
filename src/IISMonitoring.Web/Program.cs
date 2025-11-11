@@ -36,6 +36,10 @@ builder.Services.AddSingleton<IIISMonitoringService, OptimizedIISMonitoringServi
 // Usamos Singleton para gestionar el acceso al archivo de forma centralizada
 builder.Services.AddSingleton<HistoricalDataService>();
 
+// Registrar el servicio de APM como Singleton
+// Usamos Singleton para mantener el estado de traces en memoria
+builder.Services.AddSingleton<IApmService, ApmService>();
+
 // Registrar el servicio de logs como Scoped
 builder.Services.AddScoped<ILogService, LogService>();
 
