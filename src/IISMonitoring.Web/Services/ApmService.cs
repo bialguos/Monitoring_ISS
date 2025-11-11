@@ -239,14 +239,17 @@ internal class AspNetCoreDiagnosticObserver : IObserver<KeyValuePair<string, obj
     {
         if (payload == null) return;
 
-        var httpContext = GetProperty<dynamic>(payload, "HttpContext");
-        if (httpContext == null) return;
-
         try
         {
-            var request = httpContext.Request;
-            var method = request.Method?.ToString() ?? "UNKNOWN";
-            var path = request.Path?.ToString() ?? "/";
+            var httpContext = GetProperty<object>(payload, "HttpContext");
+            if (httpContext == null) return;
+
+            var request = GetProperty<object>(httpContext, "Request");
+            if (request == null) return;
+
+            var method = GetProperty<object>(request, "Method")?.ToString() ?? "UNKNOWN";
+            var pathObj = GetProperty<object>(request, "Path");
+            var path = pathObj?.ToString() ?? "/";
             var operationName = $"{method} {path}";
 
             var activityId = Activity.Current?.Id ?? Guid.NewGuid().ToString();
@@ -255,6 +258,10 @@ internal class AspNetCoreDiagnosticObserver : IObserver<KeyValuePair<string, obj
             _activityToTrace[activityId] = traceId;
 
             // Añadir span raíz
+            var scheme = GetProperty<object>(request, "Scheme")?.ToString() ?? "";
+            var hostObj = GetProperty<object>(request, "Host");
+            var host = hostObj?.ToString() ?? "";
+
             var span = new SpanInfo
             {
                 SpanId = Guid.NewGuid().ToString("N"),
@@ -267,8 +274,8 @@ internal class AspNetCoreDiagnosticObserver : IObserver<KeyValuePair<string, obj
                 {
                     ["http.method"] = method,
                     ["http.path"] = path,
-                    ["http.scheme"] = request.Scheme?.ToString() ?? "",
-                    ["http.host"] = request.Host.ToString() ?? ""
+                    ["http.scheme"] = scheme,
+                    ["http.host"] = host
                 }
             };
 
@@ -290,8 +297,10 @@ internal class AspNetCoreDiagnosticObserver : IObserver<KeyValuePair<string, obj
 
             if (_activityToTrace.TryRemove(activityId, out var traceId))
             {
-                var httpContext = GetProperty<dynamic>(payload, "HttpContext");
-                var statusCode = httpContext?.Response?.StatusCode ?? 200;
+                var httpContext = GetProperty<object>(payload, "HttpContext");
+                var response = httpContext != null ? GetProperty<object>(httpContext, "Response") : null;
+                var statusCodeObj = response != null ? GetProperty<object>(response, "StatusCode") : null;
+                var statusCode = statusCodeObj != null ? Convert.ToInt32(statusCodeObj) : 200;
                 var status = statusCode >= 400 ? "Error" : "Success";
                 var errorMessage = statusCode >= 400 ? $"HTTP {statusCode}" : null;
 
