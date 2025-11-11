@@ -17,6 +17,9 @@ const elements = {
     slowestOperationsSection: document.getElementById('slowestOperationsSection'),
     slowestOperationsBody: document.getElementById('slowestOperationsBody'),
 
+    // Sitios IIS
+    sitesContainer: document.getElementById('sitesContainer'),
+
     // Filtros
     statusFilter: document.getElementById('statusFilter'),
     limitFilter: document.getElementById('limitFilter'),
@@ -55,6 +58,7 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadDashboard();
+    loadIISSites();
 
     // Auto-refresh cada 10 segundos
     setInterval(() => loadDashboard(), 10000);
@@ -415,4 +419,47 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Funciones para gestión de sitios IIS
+async function loadIISSites() {
+    try {
+        const response = await fetch('/api/apm/sites');
+        if (!response.ok) throw new Error('Error al cargar sitios IIS');
+
+        const sites = await response.json();
+        renderIISSites(sites);
+    } catch (error) {
+        console.error('Error cargando sitios IIS:', error);
+        elements.sitesContainer.innerHTML = '<div class="error-message">Error al cargar sitios IIS</div>';
+    }
+}
+
+function renderIISSites(sites) {
+    if (!sites || sites.length === 0) {
+        elements.sitesContainer.innerHTML = '<div class="no-data">No se encontraron sitios IIS</div>';
+        return;
+    }
+
+    elements.sitesContainer.innerHTML = `
+        <div class="sites-grid">
+            ${sites.map(site => `
+                <div class="site-card ${site.isMonitored ? 'monitored' : ''}">
+                    <div class="site-header">
+                        <div class="site-name">${escapeHtml(site.name)}</div>
+                        <div class="site-id">ID: ${escapeHtml(site.id)}</div>
+                    </div>
+                    <div class="site-status">
+                        <span class="status-badge ${site.isMonitored ? 'status-success' : 'status-inactive'}">
+                            ${site.isMonitored ? '✅ Monitorizando' : '⏸️ Inactivo'}
+                        </span>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="sites-info">
+            <p><strong>Nota:</strong> La configuración de sitios monitorizados se realiza en <code>appsettings.json</code> en la sección <code>Apm:MonitoredSites</code>.</p>
+            <p>Si la lista está vacía, se monitorizan automáticamente todos los sitios IIS disponibles.</p>
+        </div>
+    `;
 }

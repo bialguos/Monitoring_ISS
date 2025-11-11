@@ -13,13 +13,19 @@ public class ApmController : ControllerBase
 {
     private readonly IApmService _apmService;
     private readonly ILogger<ApmController> _logger;
+    private readonly IISLogParserService _iisLogParser;
+    private readonly IConfiguration _configuration;
 
     public ApmController(
         IApmService apmService,
-        ILogger<ApmController> logger)
+        ILogger<ApmController> logger,
+        IISLogParserService iisLogParser,
+        IConfiguration configuration)
     {
         _apmService = apmService;
         _logger = logger;
+        _iisLogParser = iisLogParser;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -164,6 +170,87 @@ public class ApmController : ControllerBase
             return StatusCode(500, new { error = "Error al finalizar trace", message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Obtiene la lista de sitios IIS disponibles para monitorizar
+    /// </summary>
+    [HttpGet("sites")]
+    public IActionResult GetAvailableSites()
+    {
+        try
+        {
+            var sites = _iisLogParser.GetAvailableSites();
+            var monitoredSites = GetMonitoredSites();
+
+            var result = sites.Select(s => new
+            {
+                id = s.Id,
+                name = s.Name,
+                isMonitored = monitoredSites.Contains(s.Id)
+            }).ToList();
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener sitios IIS");
+            return StatusCode(500, new { error = "Error al obtener sitios IIS", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Obtiene los sitios IIS configurados para monitorizar
+    /// </summary>
+    [HttpGet("sites/monitored")]
+    public IActionResult GetMonitoredSites()
+    {
+        try
+        {
+            var monitoredSites = GetMonitoredSites();
+            return Ok(monitoredSites);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener sitios monitorizados");
+            return StatusCode(500, new { error = "Error al obtener sitios monitorizados", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Configura los sitios IIS a monitorizar (en memoria, no persiste)
+    /// </summary>
+    [HttpPost("sites/monitor")]
+    public IActionResult SetMonitoredSites([FromBody] SetMonitoredSitesRequest request)
+    {
+        try
+        {
+            // Esta configuración solo se mantiene en memoria
+            // Para hacerla persistente, habría que modificar appsettings.json o usar una base de datos
+            HttpContext.Items["MonitoredSites"] = request.SiteIds;
+            return Ok(new { message = "Configuración actualizada (en memoria)", siteIds = request.SiteIds });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al configurar sitios monitorizados");
+            return StatusCode(500, new { error = "Error al configurar sitios", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Helper para obtener los sitios monitorizados de la configuración
+    /// </summary>
+    private List<string> GetMonitoredSites()
+    {
+        var sitesConfig = _configuration.GetSection("Apm:MonitoredSites").Get<string[]>();
+        if (sitesConfig != null && sitesConfig.Any())
+        {
+            return sitesConfig.ToList();
+        }
+
+        // Si no hay configuración, monitorizar todos los sitios
+        var availableSites = _iisLogParser.GetAvailableSites();
+        return availableSites.Select(s => s.Id).ToList();
+    }
 }
 
 /// <summary>
@@ -182,4 +269,12 @@ public class EndTraceRequest
 {
     public string? Status { get; set; }
     public string? ErrorMessage { get; set; }
+}
+
+/// <summary>
+/// Request para configurar sitios monitorizados
+/// </summary>
+public class SetMonitoredSitesRequest
+{
+    public List<string> SiteIds { get; set; } = new();
 }
