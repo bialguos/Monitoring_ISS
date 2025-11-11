@@ -4,6 +4,7 @@ let currentTraces = [];
 let currentStatistics = null;
 let allSites = [];
 let selectedSites = [];
+let filtersActive = false; // Track si hay filtros activos
 
 // Elementos del DOM
 const elements = {
@@ -74,13 +75,54 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     elements.refreshButton.addEventListener('click', () => loadDashboard());
     elements.clearTracesButton.addEventListener('click', () => clearTraces());
-    elements.applyFiltersButton.addEventListener('click', () => loadTraces());
+    elements.applyFiltersButton.addEventListener('click', () => {
+        filtersActive = true;
+        loadTraces();
+    });
     elements.closeTraceModal.addEventListener('click', () => closeTraceModal());
     elements.traceModalOverlay.addEventListener('click', (e) => {
         if (e.target === elements.traceModalOverlay) {
             closeTraceModal();
         }
     });
+
+    // Event listeners para pestañas
+    setupTabListeners();
+}
+
+// Configurar listeners de pestañas
+function setupTabListeners() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.getAttribute('data-tab');
+            switchTab(tabName);
+        });
+    });
+}
+
+// Cambiar de pestaña
+function switchTab(tabName) {
+    // Actualizar botones
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-tab') === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Actualizar contenido
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+        content.classList.remove('active');
+    });
+
+    if (tabName === 'traces') {
+        document.getElementById('tracesTab').classList.add('active');
+    } else if (tabName === 'operations') {
+        document.getElementById('operationsTab').classList.add('active');
+    }
 }
 
 // Cargar dashboard completo
@@ -91,7 +133,14 @@ async function loadDashboard() {
 
         const data = await response.json();
         updateStatistics(data.statistics);
-        updateTraces(data.recentTraces);
+
+        // Si hay filtros activos, recargar traces con filtros
+        // Si no, usar los traces del dashboard
+        if (filtersActive) {
+            await loadTraces();
+        } else {
+            updateTraces(data.recentTraces);
+        }
 
     } catch (error) {
         console.error('Error cargando dashboard:', error);

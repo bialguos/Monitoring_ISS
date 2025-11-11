@@ -408,15 +408,15 @@
 }
 
 .operations-table thead {
-    background-color: #f9fafb;
+    background-color: #1f2937;
 }
 
 .operations-table th {
     padding: 0.75rem;
     text-align: left;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
+    color: white;
+    border-bottom: 2px solid #374151;
 }
 
 .operations-table td {
@@ -513,15 +513,15 @@
 }
 
 .traces-table thead {
-    background-color: #f9fafb;
+    background-color: #1f2937;
 }
 
 .traces-table th {
     padding: 0.75rem;
     text-align: left;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
+    color: white;
+    border-bottom: 2px solid #374151;
 }
 
 .traces-table td {
@@ -963,6 +963,89 @@
     text-align: center;
     color: #6b7280;
     font-style: italic;
+}
+
+/* Pestañas */
+.tabs-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.tabs-header {
+    display: flex;
+    gap: 0;
+    background-color: #f3f4f6;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 0;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: none;
+    background-color: transparent;
+    color: #6b7280;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+    position: relative;
+}
+
+.tab-button:hover {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.tab-button.active {
+    background-color: white;
+    color: #2563eb;
+    border-bottom: 3px solid #2563eb;
+}
+
+.tab-content {
+    display: none;
+    padding: 1.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-content .traces-filters {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    margin-bottom: 1.5rem;
+}
+
+.tab-content .traces-filters h3 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+    font-size: 1rem;
+}
+
+.tab-content .traces-list,
+.tab-content .slowest-operations {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
 }
 
 /* Responsive */

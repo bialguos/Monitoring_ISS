@@ -116,72 +116,83 @@
             </div>
         </section>
 
-        <!-- Operaciones Más Lentas -->
-        <section class="slowest-operations" id="slowestOperationsSection" style="display: none;">
-            <h2>🐢 Operaciones Más Lentas</h2>
-            <div class="operations-table-container">
-                <table class="operations-table">
-                    <thead>
-                        <tr>
-                            <th>Operación</th>
-                            <th>Duración Promedio</th>
-                            <th>Ejecuciones</th>
-                            <th>Errores</th>
-                            <th>Tasa de Error</th>
-                        </tr>
-                    </thead>
-                    <tbody id="slowestOperationsBody">
-                    </tbody>
-                </table>
+        <!-- Sistema de Pestañas -->
+        <section class="tabs-section">
+            <div class="tabs-header">
+                <button class="tab-button active" data-tab="traces">📋 Traces Recientes</button>
+                <button class="tab-button" data-tab="operations">🐢 Operaciones Más Lentas</button>
             </div>
-        </section>
 
-        <!-- Filtros de Traces -->
-        <section class="traces-filters">
-            <h2>🔍 Filtros</h2>
-            <div class="filters-container">
-                <div class="filter-group">
-                    <label for="statusFilter">Estado:</label>
-                    <select id="statusFilter" class="filter-select">
-                        <option value="">Todos</option>
-                        <option value="Success">Success</option>
-                        <option value="Error">Error</option>
-                    </select>
+            <!-- Tab: Traces Recientes -->
+            <div class="tab-content active" id="tracesTab">
+                <!-- Filtros de Traces -->
+                <div class="traces-filters">
+                    <h3>🔍 Filtros</h3>
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label for="statusFilter">Estado:</label>
+                            <select id="statusFilter" class="filter-select">
+                                <option value="">Todos</option>
+                                <option value="Success">Success</option>
+                                <option value="Error">Error</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="limitFilter">Límite:</label>
+                            <select id="limitFilter" class="filter-select">
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                        <button class="btn-action btn-apply-filters" id="applyFiltersButton">Aplicar Filtros</button>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label for="limitFilter">Límite:</label>
-                    <select id="limitFilter" class="filter-select">
-                        <option value="50" selected>50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                        <option value="500">500</option>
-                    </select>
+
+                <!-- Lista de Traces -->
+                <div class="traces-list">
+                    <div class="traces-table-container">
+                        <div id="tracesLoading" class="loading-message">Cargando traces...</div>
+                        <div id="tracesError" class="error-message" style="display: none;"></div>
+                        <table class="traces-table" id="tracesTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>Estado</th>
+                                    <th>Operación</th>
+                                    <th>Servicio</th>
+                                    <th>Inicio</th>
+                                    <th>Duración</th>
+                                    <th>Spans</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracesTableBody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <button class="btn-action btn-apply-filters" id="applyFiltersButton">Aplicar Filtros</button>
             </div>
-        </section>
 
-        <!-- Lista de Traces -->
-        <section class="traces-list">
-            <h2>📋 Traces Recientes</h2>
-            <div class="traces-table-container">
-                <div id="tracesLoading" class="loading-message">Cargando traces...</div>
-                <div id="tracesError" class="error-message" style="display: none;"></div>
-                <table class="traces-table" id="tracesTable" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Estado</th>
-                            <th>Operación</th>
-                            <th>Servicio</th>
-                            <th>Inicio</th>
-                            <th>Duración</th>
-                            <th>Spans</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tracesTableBody">
-                    </tbody>
-                </table>
+            <!-- Tab: Operaciones Más Lentas -->
+            <div class="tab-content" id="operationsTab">
+                <div class="slowest-operations" id="slowestOperationsSection">
+                    <div class="operations-table-container">
+                        <table class="operations-table">
+                            <thead>
+                                <tr>
+                                    <th>Operación</th>
+                                    <th>Duración Promedio</th>
+                                    <th>Ejecuciones</th>
+                                    <th>Errores</th>
+                                    <th>Tasa de Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slowestOperationsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </section>
 
