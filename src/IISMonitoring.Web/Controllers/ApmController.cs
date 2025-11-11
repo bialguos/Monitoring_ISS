@@ -14,18 +14,18 @@ public class ApmController : ControllerBase
     private readonly IApmService _apmService;
     private readonly ILogger<ApmController> _logger;
     private readonly IISLogParserService _iisLogParser;
-    private readonly IConfiguration _configuration;
+    private readonly ApmConfigurationService _apmConfig;
 
     public ApmController(
         IApmService apmService,
         ILogger<ApmController> logger,
         IISLogParserService iisLogParser,
-        IConfiguration configuration)
+        ApmConfigurationService apmConfig)
     {
         _apmService = apmService;
         _logger = logger;
         _iisLogParser = iisLogParser;
-        _configuration = configuration;
+        _apmConfig = apmConfig;
     }
 
     /// <summary>
@@ -217,17 +217,15 @@ public class ApmController : ControllerBase
     }
 
     /// <summary>
-    /// Configura los sitios IIS a monitorizar (en memoria, no persiste)
+    /// Configura los sitios IIS a monitorizar (persiste en archivo)
     /// </summary>
     [HttpPost("sites/monitor")]
-    public IActionResult SetMonitoredSites([FromBody] SetMonitoredSitesRequest request)
+    public async Task<IActionResult> SetMonitoredSites([FromBody] SetMonitoredSitesRequest request)
     {
         try
         {
-            // Esta configuración solo se mantiene en memoria
-            // Para hacerla persistente, habría que modificar appsettings.json o usar una base de datos
-            HttpContext.Items["MonitoredSites"] = request.SiteIds;
-            return Ok(new { message = "Configuración actualizada (en memoria)", siteIds = request.SiteIds });
+            await _apmConfig.SetMonitoredSitesAsync(request.SiteIds);
+            return Ok(new { message = "Configuración actualizada correctamente", siteIds = request.SiteIds });
         }
         catch (Exception ex)
         {
@@ -241,15 +239,16 @@ public class ApmController : ControllerBase
     /// </summary>
     private List<string> GetMonitoredSitesFromConfig()
     {
-        var sitesConfig = _configuration.GetSection("Apm:MonitoredSites").Get<string[]>();
-        if (sitesConfig != null && sitesConfig.Any())
+        var monitoredSites = _apmConfig.GetMonitoredSites();
+
+        // Si no hay sitios configurados, monitorizar todos
+        if (!monitoredSites.Any())
         {
-            return sitesConfig.ToList();
+            var availableSites = _iisLogParser.GetAvailableSites();
+            return availableSites.Select(s => s.Id).ToList();
         }
 
-        // Si no hay configuración, monitorizar todos los sitios
-        var availableSites = _iisLogParser.GetAvailableSites();
-        return availableSites.Select(s => s.Id).ToList();
+        return monitoredSites;
     }
 }
 

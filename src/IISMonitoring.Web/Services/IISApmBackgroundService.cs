@@ -151,18 +151,19 @@ public class IISApmBackgroundService : BackgroundService
         try
         {
             using var scope = _serviceProvider.CreateScope();
-            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var apmConfig = scope.ServiceProvider.GetRequiredService<ApmConfigurationService>();
 
-            var sitesConfig = configuration.GetSection("Apm:MonitoredSites").Get<string[]>();
-            if (sitesConfig != null && sitesConfig.Any())
+            var monitoredSites = apmConfig.GetMonitoredSites();
+
+            // Si no hay sitios configurados, monitorizar todos
+            if (!monitoredSites.Any())
             {
-                return sitesConfig.ToList();
+                var logParser = scope.ServiceProvider.GetRequiredService<IISLogParserService>();
+                var availableSites = logParser.GetAvailableSites();
+                return availableSites.Select(s => s.Id).ToList();
             }
 
-            // Si no hay configuración, monitorizar todos los sitios
-            var logParser = scope.ServiceProvider.GetRequiredService<IISLogParserService>();
-            var availableSites = logParser.GetAvailableSites();
-            return availableSites.Select(s => s.Id).ToList();
+            return monitoredSites;
         }
         catch (Exception ex)
         {

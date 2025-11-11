@@ -121,11 +121,15 @@
 }
 
 .site-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
     background: #f9fafb;
     border: 2px solid #e5e7eb;
     border-radius: 8px;
     padding: 1rem;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .site-card.monitored {
@@ -135,6 +139,18 @@
 
 .site-card:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.site-checkbox {
+    margin-top: 0.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.site-content {
+    flex: 1;
 }
 
 .site-header {
@@ -184,6 +200,32 @@
     border-radius: 3px;
     font-family: monospace;
     font-size: 0.875rem;
+}
+
+.sites-actions {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.btn-save-sites {
+    padding: 0.75rem 2rem;
+    background-color: #3b82f6;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-save-sites:hover:not(:disabled) {
+    background-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-save-sites:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .stats-grid {

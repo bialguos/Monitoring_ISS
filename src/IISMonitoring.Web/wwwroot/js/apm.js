@@ -444,22 +444,98 @@ function renderIISSites(sites) {
     elements.sitesContainer.innerHTML = `
         <div class="sites-grid">
             ${sites.map(site => `
-                <div class="site-card ${site.isMonitored ? 'monitored' : ''}">
-                    <div class="site-header">
-                        <div class="site-name">${escapeHtml(site.name)}</div>
-                        <div class="site-id">ID: ${escapeHtml(site.id)}</div>
+                <label class="site-card ${site.isMonitored ? 'monitored' : ''}">
+                    <input type="checkbox"
+                           class="site-checkbox"
+                           data-site-id="${escapeHtml(site.id)}"
+                           ${site.isMonitored ? 'checked' : ''}>
+                    <div class="site-content">
+                        <div class="site-header">
+                            <div class="site-name">${escapeHtml(site.name)}</div>
+                            <div class="site-id">ID: ${escapeHtml(site.id)}</div>
+                        </div>
+                        <div class="site-status">
+                            <span class="status-badge ${site.isMonitored ? 'status-success' : 'status-inactive'}">
+                                ${site.isMonitored ? '✅ Monitorizando' : '⏸️ Inactivo'}
+                            </span>
+                        </div>
                     </div>
-                    <div class="site-status">
-                        <span class="status-badge ${site.isMonitored ? 'status-success' : 'status-inactive'}">
-                            ${site.isMonitored ? '✅ Monitorizando' : '⏸️ Inactivo'}
-                        </span>
-                    </div>
-                </div>
+                </label>
             `).join('')}
         </div>
+        <div class="sites-actions">
+            <button class="btn-action btn-save-sites" id="saveSitesButton">💾 Guardar Configuración</button>
+        </div>
         <div class="sites-info">
-            <p><strong>Nota:</strong> La configuración de sitios monitorizados se realiza en <code>appsettings.json</code> en la sección <code>Apm:MonitoredSites</code>.</p>
-            <p>Si la lista está vacía, se monitorizan automáticamente todos los sitios IIS disponibles.</p>
+            <p><strong>Instrucciones:</strong> Marca las casillas de los sitios que deseas monitorizar y haz clic en "Guardar Configuración".</p>
+            <p>Los cambios se aplicarán inmediatamente y se guardarán de forma persistente.</p>
         </div>
     `;
+
+    // Añadir event listeners
+    document.getElementById('saveSitesButton').addEventListener('click', saveSitesConfiguration);
+
+    // Event listener para cambiar el estilo al marcar/desmarcar
+    document.querySelectorAll('.site-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.site-card');
+            const statusBadge = card.querySelector('.status-badge');
+
+            if (this.checked) {
+                card.classList.add('monitored');
+                statusBadge.classList.remove('status-inactive');
+                statusBadge.classList.add('status-success');
+                statusBadge.textContent = '✅ Monitorizando';
+            } else {
+                card.classList.remove('monitored');
+                statusBadge.classList.remove('status-success');
+                statusBadge.classList.add('status-inactive');
+                statusBadge.textContent = '⏸️ Inactivo';
+            }
+        });
+    });
+}
+
+async function saveSitesConfiguration() {
+    try {
+        const checkboxes = document.querySelectorAll('.site-checkbox');
+        const selectedSiteIds = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.dataset.siteId);
+
+        const saveButton = document.getElementById('saveSitesButton');
+        saveButton.disabled = true;
+        saveButton.textContent = '💾 Guardando...';
+
+        const response = await fetch('/api/apm/sites/monitor', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ siteIds: selectedSiteIds })
+        });
+
+        if (!response.ok) throw new Error('Error al guardar configuración');
+
+        const result = await response.json();
+
+        // Mostrar mensaje de éxito
+        saveButton.textContent = '✅ Guardado';
+        saveButton.style.backgroundColor = '#10b981';
+
+        setTimeout(() => {
+            saveButton.disabled = false;
+            saveButton.textContent = '💾 Guardar Configuración';
+            saveButton.style.backgroundColor = '';
+        }, 2000);
+
+        console.log('Configuración guardada:', result);
+    } catch (error) {
+        console.error('Error guardando configuración:', error);
+        alert('Error al guardar la configuración de sitios');
+
+        const saveButton = document.getElementById('saveSitesButton');
+        saveButton.disabled = false;
+        saveButton.textContent = '💾 Guardar Configuración';
+    }
 }

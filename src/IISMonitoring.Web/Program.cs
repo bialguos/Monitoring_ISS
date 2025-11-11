@@ -43,6 +43,9 @@ builder.Services.AddSingleton<IApmService, ApmService>();
 // Registrar el servicio de parseo de logs de IIS como Singleton
 builder.Services.AddSingleton<IISLogParserService>();
 
+// Registrar el servicio de configuración de APM como Singleton
+builder.Services.AddSingleton<ApmConfigurationService>();
+
 // Registrar el servicio de logs como Scoped
 builder.Services.AddScoped<ILogService, LogService>();
 
