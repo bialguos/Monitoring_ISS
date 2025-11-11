@@ -12,6 +12,7 @@ public class IISLogParserService
 {
     private readonly ILogger<IISLogParserService> _logger;
     private readonly ConcurrentDictionary<string, long> _filePositions = new();
+    private readonly ConcurrentDictionary<string, List<string>> _fileFields = new();
     private readonly ConcurrentDictionary<string, string> _siteIdToName = new();
 
     public IISLogParserService(ILogger<IISLogParserService> logger)
@@ -49,17 +50,24 @@ public class IISLogParserService
         try
         {
             var logsBaseDir = @"C:\inetpub\logs\LogFiles";
+            _logger.LogDebug("Buscando logs en: {Path}", logsBaseDir);
+
             if (!Directory.Exists(logsBaseDir))
             {
                 _logger.LogWarning("Directorio de logs de IIS no encontrado: {Path}", logsBaseDir);
                 return entries;
             }
 
+            _logger.LogDebug("Procesando {Count} sitios: {SiteIds}", siteIds.Count, string.Join(", ", siteIds));
+
             foreach (var siteId in siteIds)
             {
                 var siteLogDir = Path.Combine(logsBaseDir, $"W3SVC{siteId}");
+                _logger.LogDebug("Buscando directorio de logs para sitio {SiteId}: {Path}", siteId, siteLogDir);
+
                 if (!Directory.Exists(siteLogDir))
                 {
+                    _logger.LogWarning("Directorio de logs no encontrado para sitio {SiteId}: {Path}", siteId, siteLogDir);
                     continue;
                 }
 
@@ -70,14 +78,23 @@ public class IISLogParserService
                     .Take(1)
                     .ToList();
 
+                _logger.LogDebug("Archivos de log encontrados para sitio {SiteId}: {Count}", siteId, logFiles.Count);
+
                 foreach (var logFile in logFiles)
                 {
+                    _logger.LogDebug("Leyendo archivo de log: {FilePath} (Size: {Size} bytes, LastWrite: {LastWrite})",
+                        logFile.FullName, logFile.Length, logFile.LastWriteTime);
+
                     var newEntries = await ReadLogFileFromPositionAsync(logFile.FullName, siteId, maxEntries);
+                    _logger.LogDebug("Entradas leídas del archivo {FileName}: {Count}", logFile.Name, newEntries.Count);
                     entries.AddRange(newEntries);
                 }
             }
 
-            return entries.OrderByDescending(e => e.DateTime).Take(maxEntries).ToList();
+            var result = entries.OrderByDescending(e => e.DateTime).Take(maxEntries).ToList();
+            _logger.LogInformation("Total de entradas de log obtenidas: {Count} (de {TotalSites} sitios)", result.Count, siteIds.Count);
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -98,16 +115,38 @@ public class IISLogParserService
             var fileInfo = new FileInfo(filePath);
             if (!fileInfo.Exists)
             {
+                _logger.LogWarning("Archivo de log no existe: {FilePath}", filePath);
                 return entries;
             }
 
             // Obtener la última posición leída
             var lastPosition = _filePositions.GetOrAdd(filePath, 0);
+            var isInitialLoad = lastPosition == 0;
+
+            if (isInitialLoad)
+            {
+                _logger.LogInformation("Carga inicial del archivo {FileName} (tamaño: {FileSize:N0} bytes)", fileInfo.Name, fileInfo.Length);
+            }
+            else
+            {
+                _logger.LogDebug("Última posición leída para {FileName}: {Position} bytes", fileInfo.Name, lastPosition);
+            }
 
             // Si el archivo es más pequeño que la última posición, empezar desde el inicio (archivo rotado)
             if (fileInfo.Length < lastPosition)
             {
+                _logger.LogInformation("Archivo rotado detectado para {FileName}. Reiniciando lectura desde posición 0", fileInfo.Name);
                 lastPosition = 0;
+                isInitialLoad = true;
+            }
+
+            // Obtener los campos (headers) del archivo, ya sea de caché o leyendo el inicio del archivo
+            var fields = await GetOrReadFieldsAsync(filePath, fileInfo.Name);
+
+            if (!fields.Any())
+            {
+                _logger.LogWarning("No se pudieron obtener los campos del archivo {FileName}", fileInfo.Name);
+                return entries;
             }
 
             using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -115,44 +154,58 @@ public class IISLogParserService
 
             using var reader = new StreamReader(fileStream);
 
-            var fields = new List<string>();
             string? line;
             var lineCount = 0;
+            var linesRead = 0;
+            var lastProgressLog = 0;
 
             while ((line = await reader.ReadLineAsync()) != null && lineCount < maxEntries)
             {
+                linesRead++;
+
+                // Log de progreso durante carga inicial (cada 1000 líneas)
+                if (isInitialLoad && linesRead - lastProgressLog >= 1000)
+                {
+                    _logger.LogInformation("Progreso carga inicial {FileName}: {LinesRead} líneas procesadas, {EntriesCount} entradas parseadas",
+                        fileInfo.Name, linesRead, entries.Count);
+                    lastProgressLog = linesRead;
+                }
+
                 if (string.IsNullOrWhiteSpace(line))
                 {
                     continue;
                 }
 
-                // Parsear línea de campos
-                if (line.StartsWith("#Fields:"))
-                {
-                    fields = line.Substring(9).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
-                    continue;
-                }
-
-                // Ignorar otras líneas de comentario
+                // Ignorar líneas de comentario (incluyendo #Fields: que ya lo leímos antes)
                 if (line.StartsWith("#"))
                 {
                     continue;
                 }
 
                 // Parsear entrada de log
-                if (fields.Any())
+                var entry = ParseLogLine(line, fields, siteId);
+                if (entry != null)
                 {
-                    var entry = ParseLogLine(line, fields, siteId);
-                    if (entry != null)
-                    {
-                        entries.Add(entry);
-                        lineCount++;
-                    }
+                    entries.Add(entry);
+                    lineCount++;
                 }
             }
 
+            var newPosition = fileStream.Position;
+
+            if (isInitialLoad)
+            {
+                _logger.LogInformation("Carga inicial completada para {FileName}: {LinesRead} líneas procesadas, {EntriesCount} entradas parseadas",
+                    fileInfo.Name, linesRead, entries.Count);
+            }
+            else
+            {
+                _logger.LogDebug("Lectura completada para {FileName}. Líneas leídas: {LinesRead}, Entradas parseadas: {EntriesCount}, Posición anterior: {OldPos}, Posición nueva: {NewPos}",
+                    fileInfo.Name, linesRead, entries.Count, lastPosition, newPosition);
+            }
+
             // Actualizar la posición actual
-            _filePositions[filePath] = fileStream.Position;
+            _filePositions[filePath] = newPosition;
         }
         catch (Exception ex)
         {
@@ -160,6 +213,47 @@ public class IISLogParserService
         }
 
         return entries;
+    }
+
+    /// <summary>
+    /// Obtiene los campos del archivo de log (de caché o leyendo el header del archivo)
+    /// </summary>
+    private async Task<List<string>> GetOrReadFieldsAsync(string filePath, string fileName)
+    {
+        // Intentar obtener de caché
+        if (_fileFields.TryGetValue(filePath, out var cachedFields))
+        {
+            _logger.LogDebug("Campos obtenidos de caché para {FileName}: {Fields}", fileName, string.Join(", ", cachedFields));
+            return cachedFields;
+        }
+
+        // Leer el header del archivo para obtener los campos
+        var fields = new List<string>();
+        try
+        {
+            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(fileStream);
+
+            string? line;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                if (line.StartsWith("#Fields:"))
+                {
+                    fields = line.Substring(9).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+                    _logger.LogDebug("Campos leídos del archivo {FileName}: {Fields}", fileName, string.Join(", ", fields));
+
+                    // Guardar en caché
+                    _fileFields[filePath] = fields;
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error leyendo campos del archivo: {FilePath}", filePath);
+        }
+
+        return fields;
     }
 
     /// <summary>
@@ -281,6 +375,7 @@ public class IISLogParserService
     public void ResetFilePositions()
     {
         _filePositions.Clear();
+        _fileFields.Clear();
     }
 
     /// <summary>

@@ -13,6 +13,11 @@ public interface IApmService
     ApmDashboard GetDashboard();
 
     /// <summary>
+    /// Obtiene el dashboard completo de APM filtrando por nombre de servicio
+    /// </summary>
+    ApmDashboard GetDashboard(string? serviceName);
+
+    /// <summary>
     /// Obtiene todos los traces capturados
     /// </summary>
     /// <param name="limit">Límite de traces a devolver</param>

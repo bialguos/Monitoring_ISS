@@ -10,6 +10,9 @@ public class IISApmBackgroundService : BackgroundService
     private readonly ILogger<IISApmBackgroundService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly int _intervalMs;
+    private bool _isInitialLoadComplete = false;
+
+    public bool IsInitialLoadComplete => _isInitialLoadComplete;
 
     public IISApmBackgroundService(
         ILogger<IISApmBackgroundService> logger,
@@ -23,13 +26,17 @@ public class IISApmBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("IIS APM Background Service iniciado");
+        _logger.LogInformation("IIS APM Background Service iniciado. Intervalo: {IntervalMs}ms", _intervalMs);
 
         // Esperar un poco antes de empezar para que los servicios se inicialicen
         await Task.Delay(2000, stoppingToken);
 
+        var iteration = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
+            iteration++;
+            _logger.LogInformation("=== IIS APM Background Service - Iteración #{Iteration} iniciada ===", iteration);
+
             try
             {
                 using var scope = _serviceProvider.CreateScope();
@@ -38,33 +45,62 @@ public class IISApmBackgroundService : BackgroundService
 
                 // Obtener los sitios configurados para monitorizar
                 var monitoredSites = GetMonitoredSites();
+                _logger.LogInformation("Sitios monitorizados: {Count} - IDs: {SiteIds}",
+                    monitoredSites.Count,
+                    string.Join(", ", monitoredSites));
 
                 if (monitoredSites.Any())
                 {
                     // Obtener nuevas entradas de log
+                    _logger.LogDebug("Obteniendo nuevas entradas de log...");
                     var entries = await logParser.GetNewLogEntriesAsync(monitoredSites, maxEntries: 500);
+                    _logger.LogInformation("Entradas de log obtenidas: {Count}", entries.Count);
 
                     // Convertir entradas de log a traces
+                    var tracesCreated = 0;
                     foreach (var entry in entries)
                     {
                         ConvertLogEntryToTrace(apmService, entry);
+                        tracesCreated++;
                     }
 
                     if (entries.Any())
                     {
-                        _logger.LogDebug("Procesadas {Count} entradas de log de IIS", entries.Count);
+                        _logger.LogInformation("Procesadas {Count} entradas de log de IIS, {TracesCreated} traces creados",
+                            entries.Count, tracesCreated);
+
+                        // Marcar carga inicial como completada después de la primera iteración con datos
+                        if (!_isInitialLoadComplete && iteration == 1)
+                        {
+                            // TEMPORAL: Delay para ver el banner de carga (eliminar en producción)
+                            await Task.Delay(5000, stoppingToken);
+
+                            _isInitialLoadComplete = true;
+                            _logger.LogInformation("Carga inicial de APM completada");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No hay nuevas entradas de log para procesar");
                     }
                 }
+                else
+                {
+                    _logger.LogWarning("No hay sitios configurados para monitorizar");
+                }
+
+                _logger.LogInformation("=== IIS APM Background Service - Iteración #{Iteration} completada ===", iteration);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en IIS APM Background Service");
+                _logger.LogError(ex, "Error en IIS APM Background Service - Iteración #{Iteration}", iteration);
             }
 
+            _logger.LogDebug("Esperando {IntervalMs}ms hasta la próxima iteración...", _intervalMs);
             await Task.Delay(_intervalMs, stoppingToken);
         }
 
-        _logger.LogInformation("IIS APM Background Service detenido");
+        _logger.LogInformation("IIS APM Background Service detenido después de {Iterations} iteraciones", iteration);
     }
 
     /// <summary>

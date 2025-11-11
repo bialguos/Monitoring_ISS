@@ -5,9 +5,14 @@ let currentStatistics = null;
 let allSites = [];
 let selectedSites = [];
 let filtersActive = false; // Track si hay filtros activos
+let lastRefreshTime = null; // Fecha y hora del último refresco
+let loadingStatusCheckInterval = null; // Interval para verificar estado de carga
 
 // Elementos del DOM
 const elements = {
+    // Loading banner
+    loadingBanner: document.getElementById('loadingBanner'),
+
     // Estadísticas
     totalTraces: document.getElementById('totalTraces'),
     errorTraces: document.getElementById('errorTraces'),
@@ -64,11 +69,21 @@ const elements = {
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+
+    // Inicializar fecha de refresco
+    updateLastRefreshTime();
+
+    // Verificar estado de carga inicial
+    checkLoadingStatus();
+
     loadDashboard();
     loadIISSites();
 
     // Auto-refresh cada 10 segundos
     setInterval(() => loadDashboard(), 10000);
+
+    // Verificar estado de carga cada 3 segundos hasta que complete
+    loadingStatusCheckInterval = setInterval(() => checkLoadingStatus(), 3000);
 });
 
 // Configurar event listeners
@@ -142,6 +157,9 @@ async function loadDashboard() {
             updateTraces(data.recentTraces);
         }
 
+        // Actualizar fecha de último refresco
+        updateLastRefreshTime();
+
     } catch (error) {
         console.error('Error cargando dashboard:', error);
         showError('Error al cargar el dashboard de APM');
@@ -164,6 +182,9 @@ async function loadTraces() {
 
         const traces = await response.json();
         updateTraces(traces);
+
+        // Actualizar fecha de último refresco
+        updateLastRefreshTime();
 
     } catch (error) {
         console.error('Error cargando traces:', error);
@@ -210,6 +231,9 @@ function updateSlowestOperations(operations) {
 // Actualizar lista de traces
 function updateTraces(traces) {
     currentTraces = traces || [];
+
+    // Ordenar traces por fecha de inicio descendente (más recientes primero)
+    currentTraces.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
 
     elements.tracesLoading.style.display = 'none';
     elements.tracesError.style.display = 'none';
@@ -476,6 +500,14 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function updateLastRefreshTime() {
+    lastRefreshTime = new Date();
+    const element = document.getElementById('lastRefreshTime');
+    if (element) {
+        element.textContent = formatDateTime(lastRefreshTime);
+    }
+}
+
 // Funciones para gestión de sitios IIS
 async function loadIISSites() {
     try {
@@ -631,5 +663,38 @@ async function saveSitesConfiguration() {
 
         elements.saveSitesButton.disabled = false;
         elements.saveSitesButton.textContent = '💾 Guardar';
+    }
+}
+
+// Verificar estado de carga inicial
+async function checkLoadingStatus() {
+    try {
+        const response = await fetch('/api/apm/loading-status');
+        if (!response.ok) {
+            throw new Error('Error al obtener estado de carga');
+        }
+
+        const status = await response.json();
+        console.log('Loading status:', status);
+
+        // Mostrar u ocultar el banner según el estado
+        if (status.isLoading) {
+            console.log('Mostrando banner de carga...');
+            elements.loadingBanner.style.display = 'flex';
+        } else {
+            console.log('Ocultando banner de carga...');
+            elements.loadingBanner.style.display = 'none';
+
+            // Detener el interval cuando la carga inicial complete
+            if (status.isInitialLoadComplete && loadingStatusCheckInterval) {
+                clearInterval(loadingStatusCheckInterval);
+                loadingStatusCheckInterval = null;
+                console.log('Carga inicial completada. Traces disponibles:', status.tracesCount);
+            }
+        }
+    } catch (error) {
+        console.error('Error verificando estado de carga:', error);
+        // En caso de error, ocultar el banner para no bloquear la interfaz
+        elements.loadingBanner.style.display = 'none';
     }
 }

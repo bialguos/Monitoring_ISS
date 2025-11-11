@@ -15,17 +15,20 @@ public class ApmController : ControllerBase
     private readonly ILogger<ApmController> _logger;
     private readonly IISLogParserService _iisLogParser;
     private readonly ApmConfigurationService _apmConfig;
+    private readonly IISApmBackgroundService _apmBackgroundService;
 
     public ApmController(
         IApmService apmService,
         ILogger<ApmController> logger,
         IISLogParserService iisLogParser,
-        ApmConfigurationService apmConfig)
+        ApmConfigurationService apmConfig,
+        IISApmBackgroundService apmBackgroundService)
     {
         _apmService = apmService;
         _logger = logger;
         _iisLogParser = iisLogParser;
         _apmConfig = apmConfig;
+        _apmBackgroundService = apmBackgroundService;
     }
 
     /// <summary>
@@ -253,6 +256,31 @@ public class ApmController : ControllerBase
     }
 
     /// <summary>
+    /// Obtiene el estado de carga del sistema APM
+    /// </summary>
+    [HttpGet("loading-status")]
+    public IActionResult GetLoadingStatus()
+    {
+        try
+        {
+            var tracesCount = _apmService.GetTraces(10000, null).Count;
+
+            return Ok(new
+            {
+                isLoading = !_apmBackgroundService.IsInitialLoadComplete,
+                isInitialLoadComplete = _apmBackgroundService.IsInitialLoadComplete,
+                tracesCount = tracesCount,
+                lastUpdate = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener estado de carga");
+            return StatusCode(500, new { error = "Error al obtener estado", message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Helper para obtener los sitios monitorizados de la configuración
     /// </summary>
     private List<string> GetMonitoredSitesFromConfig()
@@ -280,6 +308,7 @@ public class ApmController : ControllerBase
         }
 
         // Filtrar traces que tengan el tag iis.site.id en la lista de sitios monitorizados
+        // y mantener el orden descendente por StartTime
         return traces.Where(trace =>
         {
             // Primero buscar en los tags del trace
@@ -302,7 +331,9 @@ public class ApmController : ControllerBase
 
             // Si no tiene el tag iis.site.id ni en el trace ni en los spans, no es de IIS
             return false;
-        }).ToList();
+        })
+        .OrderByDescending(t => t.StartTime)
+        .ToList();
     }
 
     /// <summary>

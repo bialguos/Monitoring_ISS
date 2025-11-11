@@ -50,8 +50,10 @@ builder.Services.AddSingleton<ApmConfigurationService>();
 builder.Services.AddScoped<ILogService, LogService>();
 
 // Registrar servicios en segundo plano
+// El IISApmBackgroundService se registra como Singleton para poder acceder a su estado desde el controller
+builder.Services.AddSingleton<IISApmBackgroundService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<IISApmBackgroundService>());
 builder.Services.AddHostedService<MonitoringBackgroundService>();
-builder.Services.AddHostedService<IISApmBackgroundService>();
 
 // Configurar CORS para desarrollo
 builder.Services.AddCors(options =>

@@ -83,8 +83,17 @@ public class ApmService : IApmService, IDisposable
 
     public ApmDashboard GetDashboard()
     {
-        var traces = _traces.Values.OrderByDescending(t => t.StartTime).Take(50).ToList();
+        return GetDashboard(null);
+    }
 
+    public ApmDashboard GetDashboard(string? serviceName)
+    {
+        var query = _traces.Values.AsEnumerable();
+        if (!string.IsNullOrEmpty(serviceName))
+        {
+            query = query.Where(t => t.ServiceName == serviceName);
+        }
+        var traces = query.OrderByDescending(t => t.StartTime).Take(50).ToList();
         return new ApmDashboard
         {
             RecentTraces = traces,
