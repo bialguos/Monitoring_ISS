@@ -37,6 +37,19 @@ public class ApmController : ControllerBase
         try
         {
             var dashboard = _apmService.GetDashboard();
+
+            // Filtrar traces solo de sitios monitorizados
+            var monitoredSites = GetMonitoredSitesFromConfig();
+            dashboard.RecentTraces = FilterTracesByMonitoredSites(dashboard.RecentTraces, monitoredSites);
+
+            // Recalcular estadísticas basándose en traces filtrados
+            // Obtener todos los traces y filtrarlos para estadísticas precisas
+            var allFilteredTraces = FilterTracesByMonitoredSites(
+                _apmService.GetTraces(10000, null),
+                monitoredSites
+            );
+            dashboard.Statistics = CalculateStatisticsFromTraces(allFilteredTraces);
+
             return Ok(dashboard);
         }
         catch (Exception ex)
@@ -57,6 +70,11 @@ public class ApmController : ControllerBase
         try
         {
             var traces = _apmService.GetTraces(limit, status);
+
+            // Filtrar traces solo de sitios monitorizados
+            var monitoredSites = GetMonitoredSitesFromConfig();
+            traces = FilterTracesByMonitoredSites(traces, monitoredSites);
+
             return Ok(traces);
         }
         catch (Exception ex)
@@ -249,6 +267,72 @@ public class ApmController : ControllerBase
         }
 
         return monitoredSites;
+    }
+
+    /// <summary>
+    /// Filtra una lista de traces para incluir solo aquellos de los sitios monitorizados
+    /// </summary>
+    private List<TraceInfo> FilterTracesByMonitoredSites(List<TraceInfo> traces, List<string> monitoredSiteIds)
+    {
+        if (!traces.Any())
+        {
+            return traces;
+        }
+
+        // Filtrar traces que tengan el tag iis.site.id en la lista de sitios monitorizados
+        return traces.Where(trace =>
+        {
+            // Si el trace tiene el tag iis.site.id, verificar si está en la lista de monitorizados
+            if (trace.Tags != null && trace.Tags.TryGetValue("iis.site.id", out var siteId))
+            {
+                return monitoredSiteIds.Contains(siteId);
+            }
+
+            // Si no tiene el tag, puede ser un trace de la aplicación de monitorización misma
+            // En ese caso, lo incluimos también
+            return true;
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Calcula estadísticas basándose en una lista de traces
+    /// </summary>
+    private ApmStatistics CalculateStatisticsFromTraces(List<TraceInfo> traces)
+    {
+        var allTraces = traces.Where(t => t.Status != "InProgress").ToList();
+
+        if (!allTraces.Any())
+        {
+            return new ApmStatistics();
+        }
+
+        var errorTraces = allTraces.Where(t => t.Status == "Error").ToList();
+        var durations = allTraces.Select(t => t.DurationMs).ToList();
+
+        // Agrupar por operación para encontrar las más lentas
+        var operationStats = allTraces
+            .GroupBy(t => t.OperationName)
+            .Select(g => new OperationStatistic
+            {
+                OperationName = g.Key,
+                AverageDurationMs = g.Average(t => t.DurationMs),
+                Count = g.Count(),
+                ErrorCount = g.Count(t => t.Status == "Error")
+            })
+            .OrderByDescending(o => o.AverageDurationMs)
+            .Take(10)
+            .ToList();
+
+        return new ApmStatistics
+        {
+            TotalTraces = allTraces.Count,
+            ErrorTraces = errorTraces.Count,
+            AverageDurationMs = durations.Any() ? durations.Average() : 0,
+            MaxDurationMs = durations.Any() ? durations.Max() : 0,
+            MinDurationMs = durations.Any() ? durations.Min() : 0,
+            ErrorRate = allTraces.Count > 0 ? (double)errorTraces.Count / allTraces.Count * 100 : 0,
+            SlowestOperations = operationStats
+        };
     }
 }
 
