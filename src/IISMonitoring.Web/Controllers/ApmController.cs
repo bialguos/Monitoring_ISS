@@ -180,7 +180,7 @@ public class ApmController : ControllerBase
         try
         {
             var sites = _iisLogParser.GetAvailableSites();
-            var monitoredSites = GetMonitoredSites();
+            var monitoredSites = GetMonitoredSitesFromConfig();
 
             var result = sites.Select(s => new
             {
@@ -206,7 +206,7 @@ public class ApmController : ControllerBase
     {
         try
         {
-            var monitoredSites = GetMonitoredSites();
+            var monitoredSites = GetMonitoredSitesFromConfig();
             return Ok(monitoredSites);
         }
         catch (Exception ex)
@@ -239,7 +239,7 @@ public class ApmController : ControllerBase
     /// <summary>
     /// Helper para obtener los sitios monitorizados de la configuración
     /// </summary>
-    private List<string> GetMonitoredSites()
+    private List<string> GetMonitoredSitesFromConfig()
     {
         var sitesConfig = _configuration.GetSection("Apm:MonitoredSites").Get<string[]>();
         if (sitesConfig != null && sitesConfig.Any())
